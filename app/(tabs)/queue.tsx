@@ -1,0 +1,374 @@
+// Caminho do arquivo: app/(tabs)/queue.tsx
+import LoadingSpinner from '@/components/LoadingSpinner';
+import { useAuthStore } from '@/stores/authStore';
+import { useQueueStore } from '@/stores/queueStore';
+import { MaterialIcons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
+import React, { useEffect } from 'react';
+import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Button, Card } from 'react-native-paper';
+import { SafeAreaView } from 'react-native-safe-area-context';
+
+export default function QueuePage() {
+  const router = useRouter();
+  const { user } = useAuthStore();
+  const { queueData, totalInQueue, isLoading, loadQueuePosition, refresh } = useQueueStore();
+  const [refreshing, setRefreshing] = React.useState(false);
+
+  useEffect(() => {
+    if (user?.id) {
+      loadQueuePosition(user.id);
+    }
+  }, [user?.id]);
+
+  const onRefresh = async () => {
+    if (!user?.id) return;
+    setRefreshing(true);
+    await refresh(user.id);
+    setRefreshing(false);
+  };
+
+  // Calcula tempo estimado (aproximadamente 2 minutos por pessoa)
+  const calculateEstimatedTime = (position: number): number => {
+    return Math.max(position * 2, 5); // Mínimo 5 minutos
+  };
+
+  const formatDate = (dateStr: string) => {
+    const date = new Date(dateStr);
+    return date.toLocaleDateString('pt-BR');
+  };
+
+  const formatTime = (timeStr: string) => {
+    // Remove segundos do horário (ex: "14:30:00" -> "14:30")
+    if (timeStr && timeStr.includes(':')) {
+      const parts = timeStr.split(':');
+      return `${parts[0]}:${parts[1]}`;
+    }
+    return timeStr;
+  };
+
+  if (isLoading) {
+    return <LoadingSpinner fullScreen message="Carregando fila..." />;
+  }
+
+  if (!queueData) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.header}>
+          <Text style={styles.headerTitle}>Fila ao vivo</Text>
+          <Text style={styles.headerSubtitle}>Acompanhe sua posição</Text>
+        </View>
+        <View style={styles.emptyContainer}>
+          <MaterialIcons name="people-outline" size={64} color="#CCCCCC" />
+          <Text style={styles.emptyTitle}>Você não está na fila</Text>
+          <Text style={styles.emptySubtitle}>
+            Compre uma passagem para uma viagem em embarque e você será automaticamente adicionado à fila
+          </Text>
+          <Button 
+            mode="contained" 
+            style={styles.emptyButton}
+            onPress={() => router.push('/(tabs)/schedule')}
+          >
+            Ver Horários
+          </Button>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  const estimatedTime = calculateEstimatedTime(queueData.posicao);
+
+  return (
+    <SafeAreaView style={styles.container}>
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>Fila ao vivo</Text>
+        <Text style={styles.headerSubtitle}>Acompanhe sua posição</Text>
+      </View>
+      <ScrollView 
+        contentContainerStyle={styles.content}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#0066CC']} />
+        }
+      >
+        <Card style={styles.card}>
+          <Card.Content>
+            <Text style={styles.cardTitle}>Sua posição na fila</Text>
+            {/* --- Componente de Círculo de Progresso --- */}
+            <View style={styles.progressCircleContainer}>
+              <View style={styles.progressCircle}>
+                <Text style={styles.progressText}>{queueData.posicao}°</Text>
+                <Text style={styles.progressLabel}>posição</Text>
+              </View>
+            </View>
+            {/* --- Fim do Componente --- */}
+            <View style={styles.infoRow}>
+              <View style={styles.infoBlock}>
+                <Text style={styles.infoLabel}>Total na fila</Text>
+                <Text style={styles.infoValue}>{totalInQueue} pessoas</Text>
+              </View>
+              <View style={styles.infoBlock}>
+                <Text style={styles.infoLabel}>Tempo estimado</Text>
+                <Text style={styles.infoValue}>~{estimatedTime} min</Text>
+              </View>
+            </View>
+          </Card.Content>
+          <Card.Actions style={styles.cardActions}>
+            <Button 
+              mode="outlined" 
+              style={styles.button} 
+              labelStyle={styles.buttonLabel} 
+              onPress={onRefresh}
+              loading={refreshing}
+            >
+              Atualizar posição
+            </Button>
+          </Card.Actions>
+        </Card>
+
+        <Text style={styles.sectionTitle}>Informações da viagem</Text>
+        <View style={[styles.tripInfoCard, { borderLeftColor: '#0066CC' }]}>
+          <View style={styles.routeHeader}>
+            <Text style={styles.routeTitle}>{queueData.origem} → {queueData.destino}</Text>
+            <Text style={styles.dateTimeText}>
+              {formatDate(queueData.data_viagem)} às {formatTime(queueData.horario_saida)}
+            </Text>
+          </View>
+
+          <View style={styles.boardingRow}>
+            <Text style={styles.boardingLabel}>Embarcação</Text>
+            <Text style={styles.boardingValue}>{queueData.embarcacao_nome}</Text>
+          </View>
+
+          <View style={styles.boardingRow}>
+            <Text style={styles.boardingLabel}>Operadora</Text>
+            <Text style={styles.boardingValue}>
+              {queueData.operadora === 'internacional_maritima' ? 'Internacional Marítima' :
+               queueData.operadora === 'henvil' ? 'Henvil' :
+               queueData.operadora === 'servi_porto' ? 'Servi Porto' : queueData.operadora}
+            </Text>
+          </View>
+
+          <View style={styles.boardingRow}>
+            <Text style={styles.boardingLabel}>Vagas para Passageiros</Text>
+            <Text style={styles.boardingValue}>{queueData.vagas_disponiveis} disponíveis</Text>
+          </View>
+
+          <View style={[styles.boardingRow, styles.lastItem]}>
+            <Text style={styles.boardingLabel}>Vagas para Veículos</Text>
+            <Text style={styles.boardingValue}>
+              {queueData.capacidade_max_veiculos - queueData.veiculos_atuais} disponíveis
+            </Text>
+          </View>
+        </View>
+
+        <Text style={styles.sectionTitle}>Passageiro</Text>
+        <Card style={styles.card}>
+          <Card.Content>
+            <View style={styles.passengerRow}>
+              <MaterialIcons name="person" size={20} color="#0066CC" />
+              <Text style={styles.passengerText}>{queueData.nome_passageiro}</Text>
+            </View>
+            <View style={styles.passengerRow}>
+              <MaterialIcons name="confirmation-number" size={20} color="#0066CC" />
+              <Text style={styles.passengerText}>
+                {queueData.tipo_passagem === 'pedestre' ? 'Pedestre' : 'Veículo'}
+              </Text>
+            </View>
+          </Card.Content>
+        </Card>
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#F5F5F5',
+  },
+  header: {
+    backgroundColor: '#0066CC',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+  },
+  headerTitle: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  headerSubtitle: {
+    fontSize: 16,
+    color: '#FFFFFF',
+    opacity: 0.9,
+  },
+  content: {
+    padding: 16,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333333',
+    marginTop: 24,
+    marginBottom: 8,
+  },
+  card: {
+    backgroundColor: '#FFFFFF',
+    marginBottom: 16,
+  },
+  cardTitle: {
+    textAlign: 'center',
+    fontSize: 16,
+    color: '#666666',
+    marginBottom: 16,
+  },
+  progressCircleContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginVertical: 16,
+  },
+  progressCircle: {
+    width: 150,
+    height: 150,
+    borderRadius: 75,
+    borderWidth: 10,
+    borderColor: '#EBF5FF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FFFFFF',
+    shadowColor: '#0066CC',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
+    elevation: 5,
+  },
+  progressText: {
+    fontSize: 48,
+    fontWeight: 'bold',
+    color: '#0066CC',
+  },
+  progressLabel: {
+    fontSize: 14,
+    color: '#666666',
+    marginTop: 4,
+  },
+  infoRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#EEEEEE',
+    borderBottomWidth: 1,
+    borderBottomColor: '#EEEEEE',
+    paddingVertical: 16,
+  },
+  infoBlock: {
+    alignItems: 'center',
+  },
+  infoLabel: {
+    fontSize: 14,
+    color: '#666666',
+  },
+  infoValue: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333333',
+  },
+  cardActions: {
+    paddingHorizontal: 16,
+    paddingBottom: 16,
+    flexDirection: 'column',
+  },
+  button: {
+    width: '100%',
+    marginVertical: 8,
+    borderColor: '#0066CC',
+  },
+  buttonLabel: {
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  tripInfoCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+    borderLeftWidth: 4,
+    borderLeftColor: '#0066CC',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  routeHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+    paddingBottom: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E8F4FD',
+  },
+  routeTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#0066CC',
+  },
+  dateTimeText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#666666',
+  },
+  boardingRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F0F0F0',
+  },
+  boardingLabel: {
+    fontSize: 14,
+    color: '#666666',
+  },
+  boardingValue: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#1A1A1A',
+  },
+  lastItem: {
+    borderBottomWidth: 0,
+  },
+  passengerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  passengerText: {
+    marginLeft: 12,
+    fontSize: 16,
+    color: '#666666',
+  },
+  emptyContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 32,
+  },
+  emptyTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#333333',
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  emptySubtitle: {
+    fontSize: 14,
+    color: '#666666',
+    textAlign: 'center',
+    marginBottom: 24,
+  },
+  emptyButton: {
+    backgroundColor: '#0066CC',
+  },
+});
