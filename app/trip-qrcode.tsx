@@ -23,22 +23,21 @@ interface TicketData {
 }
 
 export default function TripQRCodePage() {
-  // Recebe o ID da passagem da rota anterior
-  const { ticketId } = useLocalSearchParams<{ ticketId: string }>();
+  // Recebe o ID da passagem ou grupo da rota anterior
+  const { ticketId, grupoId } = useLocalSearchParams<{ ticketId?: string; grupoId?: string }>();
 
-  const [ticketData, setTicketData] = useState<TicketData | null>(null);
+  const [tickets, setTickets] = useState<TicketData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     loadTicketData();
-  }, [ticketId]);
+  }, [ticketId, grupoId]);
 
   const loadTicketData = async () => {
     try {
       setIsLoading(true);
 
-      // Busca dados da passagem direto da tabela passagens com joins
-      const { data, error } = await supabase
+      let query = supabase
         .from('passagens')
         .select(`
           id,
@@ -46,6 +45,7 @@ export default function TripQRCodePage() {
           nome_passageiro,
           tipo_passagem,
           codigo_qr,
+          grupo_id,
           viagens!inner (
             data_viagem,
             horario_saida,
@@ -57,35 +57,57 @@ export default function TripQRCodePage() {
               nome
             )
           )
-        `)
-        .eq('id', ticketId)
-        .single();
+        `);
+
+      // Se grupoId foi fornecido, busca todas as passagens do grupo
+      if (grupoId) {
+        query = query.eq('grupo_id', grupoId).is('cancelado_em', null);
+      } else if (ticketId) {
+        // Se apenas ticketId, verifica se há grupo e busca todas as passagens do grupo
+        const { data: passagem } = await supabase
+          .from('passagens')
+          .select('grupo_id')
+          .eq('id', ticketId)
+          .single();
+
+        if (passagem?.grupo_id) {
+          // Se tem grupo, busca todas as passagens do grupo
+          query = query.eq('grupo_id', passagem.grupo_id).is('cancelado_em', null);
+        } else {
+          // Se não tem grupo, busca apenas esta passagem
+          query = query.eq('id', ticketId);
+        }
+      }
+
+      const { data, error } = await query;
 
       if (error) throw error;
 
-      if (!data) {
+      if (!data || data.length === 0) {
         throw new Error('Passagem não encontrada');
       }
 
       // Mapeia os dados para o formato esperado
-      const viagem = Array.isArray(data.viagens) ? data.viagens[0] : data.viagens;
-      const rota = Array.isArray(viagem?.rotas) ? viagem.rotas[0] : viagem?.rotas;
-      const embarcacao = Array.isArray(viagem?.embarcacoes) ? viagem.embarcacoes[0] : viagem?.embarcacoes;
+      const mappedTickets: TicketData[] = data.map((item: any) => {
+        const viagem = Array.isArray(item.viagens) ? item.viagens[0] : item.viagens;
+        const rota = Array.isArray(viagem?.rotas) ? viagem.rotas[0] : viagem?.rotas;
+        const embarcacao = Array.isArray(viagem?.embarcacoes) ? viagem.embarcacoes[0] : viagem?.embarcacoes;
 
-      const mappedData: TicketData = {
-        id: data.id,
-        numero_bilhete: data.numero_bilhete,
-        nome_passageiro: data.nome_passageiro,
-        tipo_passagem: data.tipo_passagem,
-        codigo_qr: data.codigo_qr,
-        data_viagem: viagem?.data_viagem || '',
-        horario_saida: viagem?.horario_saida || '',
-        origem: rota?.origem || '',
-        destino: rota?.destino || '',
-        embarcacao_nome: embarcacao?.nome || '',
-      };
+        return {
+          id: item.id,
+          numero_bilhete: item.numero_bilhete,
+          nome_passageiro: item.nome_passageiro,
+          tipo_passagem: item.tipo_passagem,
+          codigo_qr: item.codigo_qr,
+          data_viagem: viagem?.data_viagem || '',
+          horario_saida: viagem?.horario_saida || '',
+          origem: rota?.origem || '',
+          destino: rota?.destino || '',
+          embarcacao_nome: embarcacao?.nome || '',
+        };
+      });
 
-      setTicketData(mappedData);
+      setTickets(mappedTickets);
     } catch (error: any) {
       console.error('Erro ao carregar passagem:', error);
       Alert.alert(
@@ -107,7 +129,7 @@ export default function TripQRCodePage() {
     return <LoadingSpinner fullScreen message="Carregando QR Code..." />;
   }
 
-  if (!ticketData) {
+  if (!tickets || tickets.length === 0) {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.errorContainer}>
@@ -124,6 +146,18 @@ export default function TripQRCodePage() {
     return date.toLocaleDateString('pt-BR');
   };
 
+  // Formata horário removendo segundos (HH:MM:SS -> HH:MM)
+  const formatTime = (timeStr: string) => {
+    if (timeStr && timeStr.includes(':')) {
+      const parts = timeStr.split(':');
+      return `${parts[0]}:${parts[1]}`;
+    }
+    return timeStr;
+  };
+
+  const multipleTickets = tickets.length > 1;
+  const firstTicket = tickets[0];
+
   return (
     <SafeAreaView style={styles.container}>
       {/* Cabeçalho Customizado */}
@@ -134,56 +168,75 @@ export default function TripQRCodePage() {
           iconColor="#004080"
           onPress={() => router.back()}
         />
-        <Text style={styles.headerTitle}>QR Code da Passagem</Text>
+        <Text style={styles.headerTitle}>
+          {multipleTickets ? `QR Codes (${tickets.length})` : 'QR Code da Passagem'}
+        </Text>
         <View style={{ width: 48 }} />
       </View>
 
       <ScrollView contentContainerStyle={styles.content}>
-        <Card style={styles.card}>
-          <Card.Content style={styles.cardContent}>
-            <Title style={styles.cardTitle}>Apresente no embarque</Title>
-            
-            {/* Número do bilhete */}
-            <Text style={styles.ticketNumber}>{ticketData.numero_bilhete}</Text>
-            
-            {/* QR Code */}
-            <View style={styles.qrCodeContainer}>
-              <QRCode
-                value={ticketData.codigo_qr}
-                size={220}
-                backgroundColor="white"
-                color="#004080"
-              />
-            </View>
+        {multipleTickets && (
+          <View style={styles.infoBox}>
+            <MaterialIcons name="info" size={20} color="#0066CC" />
+            <Text style={styles.infoText}>
+              Esta compra possui {tickets.length} passagens. Apresente cada QR code no embarque.
+            </Text>
+          </View>
+        )}
 
-            {/* Detalhes da Viagem */}
-            <View style={styles.detailsContainer}>
-              <View style={styles.detailRow}>
-                <MaterialIcons name="person" size={20} color="#0066CC" />
-                <Paragraph style={styles.detailText}>{ticketData.nome_passageiro}</Paragraph>
+        {tickets.map((ticket, index) => (
+          <Card key={ticket.id} style={[styles.card, index > 0 && styles.cardSpacing]}>
+            <Card.Content style={styles.cardContent}>
+              {multipleTickets && (
+                <Text style={styles.ticketCounter}>Passagem {index + 1} de {tickets.length}</Text>
+              )}
+              
+              <Title style={styles.cardTitle}>Apresente no embarque</Title>
+              
+              {/* Número do bilhete */}
+              <Text style={styles.ticketNumber}>{ticket.numero_bilhete}</Text>
+              
+              {/* QR Code */}
+              <View style={styles.qrCodeContainer}>
+                <QRCode
+                  value={ticket.codigo_qr}
+                  size={220}
+                  backgroundColor="white"
+                  color="#004080"
+                />
               </View>
-              <View style={styles.detailRow}>
-                <MaterialIcons name="route" size={20} color="#0066CC" />
-                <Paragraph style={styles.detailText}>
-                  {ticketData.origem} → {ticketData.destino}
-                </Paragraph>
+
+              {/* Detalhes da Viagem */}
+              <View style={styles.detailsContainer}>
+                <View style={styles.detailRow}>
+                  <MaterialIcons name="person" size={20} color="#0066CC" />
+                  <Paragraph style={styles.detailText}>{ticket.nome_passageiro}</Paragraph>
+                </View>
+                <View style={styles.detailRow}>
+                  <MaterialIcons name="route" size={20} color="#0066CC" />
+                  <Paragraph style={styles.detailText}>
+                    {ticket.origem} → {ticket.destino}
+                  </Paragraph>
+                </View>
+                <View style={styles.detailRow}>
+                  <MaterialIcons name="event" size={20} color="#0066CC" />
+                  <Paragraph style={styles.detailText}>
+                    {formatDate(ticket.data_viagem)} às {formatTime(ticket.horario_saida)}
+                  </Paragraph>
+                </View>
+                <View style={styles.detailRow}>
+                  <MaterialIcons name="directions-boat" size={20} color="#0066CC" />
+                  <Paragraph style={styles.detailText}>{ticket.embarcacao_nome}</Paragraph>
+                </View>
               </View>
-              <View style={styles.detailRow}>
-                <MaterialIcons name="event" size={20} color="#0066CC" />
-                <Paragraph style={styles.detailText}>
-                  {formatDate(ticketData.data_viagem)} às {ticketData.horario_saida}
-                </Paragraph>
-              </View>
-              <View style={styles.detailRow}>
-                <MaterialIcons name="directions-boat" size={20} color="#0066CC" />
-                <Paragraph style={styles.detailText}>{ticketData.embarcacao_nome}</Paragraph>
-              </View>
-            </View>
-          </Card.Content>
-        </Card>
+            </Card.Content>
+          </Card>
+        ))}
 
         <Paragraph style={styles.footerText}>
-          Mostre este código para o operador no portão de embarque.
+          {multipleTickets 
+            ? 'Mostre cada código para o operador no portão de embarque.'
+            : 'Mostre este código para o operador no portão de embarque.'}
         </Paragraph>
       </ScrollView>
     </SafeAreaView>
@@ -214,14 +267,41 @@ const styles = StyleSheet.create({
     padding: 16,
     alignItems: 'center',
   },
+  infoBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#E3F2FD',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 16,
+    width: '100%',
+    maxWidth: 400,
+  },
+  infoText: {
+    flex: 1,
+    marginLeft: 10,
+    fontSize: 14,
+    color: '#0066CC',
+    lineHeight: 20,
+  },
   card: {
     width: '100%',
     maxWidth: 400,
     backgroundColor: '#FFFFFF',
   },
+  cardSpacing: {
+    marginTop: 16,
+  },
   cardContent: {
     alignItems: 'center',
     padding: 16,
+  },
+  ticketCounter: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#0066CC',
+    marginBottom: 8,
+    textAlign: 'center',
   },
   cardTitle: {
     fontSize: 18,

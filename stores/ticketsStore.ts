@@ -90,11 +90,35 @@ export const useTicketsStore = create<TicketsState>((set, get) => ({
 
       if (error) throw error;
 
+      // Função auxiliar para calcular horário de chegada
+      const calculateArrivalTime = (departureTime: string, durationMinutes: number = 90): string => {
+        try {
+          // Se departure_time está em formato HH:mm ou HH:mm:ss
+          const timeParts = departureTime.split(':');
+          const hours = parseInt(timeParts[0], 10);
+          const minutes = parseInt(timeParts[1], 10);
+          
+          if (isNaN(hours) || isNaN(minutes)) return departureTime;
+          
+          // Calcula total de minutos
+          const totalMinutes = hours * 60 + minutes + durationMinutes;
+          
+          // Converte de volta para HH:mm
+          const newHours = Math.floor(totalMinutes / 60) % 24;
+          const newMinutes = totalMinutes % 60;
+          
+          return `${String(newHours).padStart(2, '0')}:${String(newMinutes).padStart(2, '0')}`;
+        } catch {
+          return departureTime;
+        }
+      };
+
       // Mapeia dados da tabela para o formato esperado pelo app
       const mappedTickets: Ticket[] = (data || []).map((passagem: any) => {
         const viagem = passagem.viagens || {};
         const rota = viagem.rotas || {};
         const embarcacao = viagem.embarcacoes || {};
+        const departureTime = parseTimeString(viagem.horario_saida || '');
         
         return {
           id: passagem.id,
@@ -116,14 +140,15 @@ export const useTicketsStore = create<TicketsState>((set, get) => ({
           created_at: passagem.comprado_em,
           used_at: passagem.usado_em,
           cancelled_at: passagem.cancelado_em,
+          grupo_id: passagem.grupo_id || null,
           // Dados da viagem relacionada
           trips: {
             id: viagem.id || '',
             origin: rota.origem || '',
             destination: rota.destino || '',
-            departure_time: parseTimeString(viagem.horario_saida || ''),
-            arrival_time: parseTimeString(viagem.horario_saida || ''),
-            boarding_time: parseTimeString(viagem.horario_saida || ''),
+            departure_time: departureTime,
+            arrival_time: calculateArrivalTime(departureTime, 90),
+            boarding_time: departureTime,
             date: viagem.data_viagem || '',
             ferry_name: embarcacao.nome || '',
             company: '',
@@ -136,7 +161,7 @@ export const useTicketsStore = create<TicketsState>((set, get) => ({
                     viagem.status === 'chegou' ? 'completed' :
                     viagem.status === 'cancelada' ? 'cancelled' : 'scheduled',
             gate: 'Portão 1',
-            duration_minutes: 45,
+            duration_minutes: 90,
             created_at: passagem.comprado_em,
           }
         };

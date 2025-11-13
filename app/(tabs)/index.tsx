@@ -3,6 +3,7 @@ import { useAuthStore } from '@/stores/authStore';
 import { useTicketsStore } from '@/stores/ticketsStore';
 import { useTripsStore } from '@/stores/tripsStore';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
+import { format } from 'date-fns';
 import { useRouter } from 'expo-router';
 import React, { useEffect } from 'react';
 import { ActivityIndicator, RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
@@ -79,7 +80,9 @@ export default function HomePage() {
   }, [isAuthenticated, user?.id]);
 
   const loadData = async () => {
-    await fetchTrips();
+    // Busca viagens de hoje e dos próximos dias
+    const today = new Date();
+    await fetchTrips(today);
   };
 
   const onRefresh = async () => {
@@ -94,9 +97,43 @@ export default function HomePage() {
   // Busca a passagem ativa do usuário (se houver)
   const activeTicket = tickets.find(t => t.status === 'active');
   
-  // Busca próximas viagens (limitado a 15)
+  // Busca próximas viagens que ainda não aconteceram
+  const now = new Date();
+  const currentTime = now.getHours() * 60 + now.getMinutes(); // Minutos desde meia-noite
+  const today = format(now, 'yyyy-MM-dd');
+  
   const upcomingTrips = trips
-    .filter(t => t.status === 'scheduled' || t.status === 'boarding')
+    .filter(t => {
+      // Filtra apenas viagens agendadas ou embarcando
+      if (t.status !== 'scheduled' && t.status !== 'boarding') return false;
+      
+      // Se a data da viagem for anterior a hoje, não mostra
+      if (t.date < today) return false;
+      
+      // Se for hoje, verifica se o horário já passou
+      if (t.date === today) {
+        try {
+          // departure_time já vem como string do tipo "14:30" do store
+          const tripTimeStr = t.departure_time;
+          if (!tripTimeStr || tripTimeStr === '--:--') return true;
+          
+          // Extrai hora e minuto da string HH:mm
+          const [hours, minutes] = tripTimeStr.split(':').map(Number);
+          if (isNaN(hours) || isNaN(minutes)) return true; // Se não conseguir parsear, mostra
+          
+          const tripMinutes = hours * 60 + minutes;
+          
+          // Só mostra se ainda não passou (adiciona margem de 5 minutos)
+          return tripMinutes > (currentTime - 5);
+        } catch (error) {
+          console.log('Erro ao filtrar horário:', error);
+          return true; // Em caso de erro, mostra a viagem
+        }
+      }
+      
+      // Se for data futura, mostra
+      return true;
+    })
     .slice(0, 15);
 
   // Por enquanto, sem dados de fila - será implementado depois
@@ -165,14 +202,14 @@ export default function HomePage() {
 
                   {/* Ferry Info */}
                   <View style={styles.ferryInfoContainer}>
-                    <View style={styles.ferryInfo}>
-                      <Ionicons name="boat-outline" size={20} color="#0066CC" />
-                      <View style={styles.ferryTextContainer}>
-                        <Text style={styles.ferryLabel}>Embarcação</Text>
-                        <Text style={styles.ferryName}>{activeTicket.trips.ferry_name}</Text>
-                      </View>
+                    <View style={styles.ferryInfoRow}>
+                      <Text style={styles.ferryInfoLabel}>Embarcação</Text>
+                      <Text style={styles.ferryInfoValue}>{activeTicket.trips.ferry_name}</Text>
                     </View>
-                    <Text style={styles.gateText}>{activeTicket.trips.gate}</Text>
+                    <View style={styles.ferryInfoRow}>
+                      <Text style={styles.ferryInfoLabel}>Operadora</Text>
+                      <Text style={styles.ferryInfoValue}>{activeTicket.trips.operator || 'Sistema Ferry'}</Text>
+                    </View>
                   </View>
 
                   {/* Action Button */}
@@ -180,6 +217,8 @@ export default function HomePage() {
                     mode="contained"
                     style={styles.followTripButton}
                     labelStyle={styles.followTripButtonText}
+                    buttonColor="#0066CC"
+                    textColor="#FFFFFF"
                     onPress={() => router.push('/(tabs)/queue')}
                   >
                     Ver posição na fila
@@ -363,30 +402,22 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 16,
     marginBottom: 16,
+    gap: 12,
   },
-  ferryInfo: {
+  ferryInfoRow: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 8,
   },
-  ferryTextContainer: {
-    marginLeft: 12,
-    flex: 1,
-  },
-  ferryLabel: {
-    fontSize: 12,
-    color: '#666666',
-    marginBottom: 2,
-  },
-  ferryName: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#333333',
-  },
-  gateText: {
+  ferryInfoLabel: {
     fontSize: 14,
     color: '#666666',
-    marginLeft: 32,
+    fontWeight: '500',
+  },
+  ferryInfoValue: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#333333',
   },
   followTripButton: {
     backgroundColor: '#0066CC',
@@ -401,7 +432,6 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '700',
     color: '#333333',
-    marginBottom: 16,
   },
   quickActionsContainer: {
     flexDirection: 'row',

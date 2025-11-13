@@ -62,41 +62,74 @@ export const useTripsStore = create<TripsState>((set, get) => ({
       set({ isLoading: true, error: null });
 
       const searchDate = date || get().selectedDate;
-      const dateStr = format(searchDate, 'yyyy-MM-dd');
+      const todayStr = format(new Date(), 'yyyy-MM-dd');
 
       // Busca viagens na view viagens_disponiveis (já filtra viagens com vagas)
+      // Sempre busca viagens de hoje até os próximos 7 dias para ter dados disponíveis
+      // A página de horários fará o filtro por data específica
+      const nextWeek = new Date();
+      nextWeek.setDate(nextWeek.getDate() + 7);
+      const nextWeekStr = format(nextWeek, 'yyyy-MM-dd');
+      
       const { data: viagensData, error: viagemError } = await supabase
         .from('viagens_disponiveis')
         .select('*')
-        .eq('data_viagem', dateStr)
+        .gte('data_viagem', todayStr)
+        .lte('data_viagem', nextWeekStr)
+        .order('data_viagem', { ascending: true })
         .order('horario_saida', { ascending: true });
 
       if (viagemError) throw viagemError;
 
+      // Função auxiliar para calcular horário de chegada
+      const calculateArrivalTime = (departureTime: string, durationMinutes: number = 90): string => {
+        try {
+          // Se departure_time está em formato HH:mm
+          const [hours, minutes] = departureTime.split(':').map(Number);
+          if (isNaN(hours) || isNaN(minutes)) return departureTime;
+          
+          // Calcula total de minutos
+          const totalMinutes = hours * 60 + minutes + durationMinutes;
+          
+          // Converte de volta para HH:mm
+          const newHours = Math.floor(totalMinutes / 60) % 24;
+          const newMinutes = totalMinutes % 60;
+          
+          return `${String(newHours).padStart(2, '0')}:${String(newMinutes).padStart(2, '0')}`;
+        } catch {
+          return departureTime;
+        }
+      };
+
       // Mapeia dados da view para o formato esperado pelo app
-      const mappedTrips: Trip[] = (viagensData || []).map((viagem: any) => ({
-        id: viagem.id,
-        origin: viagem.origem,
-        destination: viagem.destino,
-        departure_time: parseTimeString(viagem.horario_saida),
-        arrival_time: parseTimeString(viagem.horario_saida), // Calculado depois se necessário
-        boarding_time: parseTimeString(viagem.horario_saida),
-        date: format(new Date(viagem.data_viagem), 'yyyy-MM-dd'),
-        ferry_name: viagem.embarcacao_nome,
-        company: viagem.operadora,
-        available_seats: viagem.vagas_disponiveis,
-        total_seats: viagem.capacidade_max_pedestres,
-        price: viagem.preco_pedestre,
-        price_passenger: viagem.preco_pedestre,
-        status: viagem.status === 'agendada' ? 'scheduled' : 
-                viagem.status === 'embarcando' ? 'boarding' : 
-                viagem.status === 'partiu' ? 'active' : 
-                viagem.status === 'chegou' ? 'completed' : 
-                viagem.status === 'cancelada' ? 'cancelled' : 'scheduled',
-        gate: 'Portão 1',
-        duration_minutes: 45,
-        created_at: new Date().toISOString(),
-      }));
+      const mappedTrips: Trip[] = (viagensData || []).map((viagem: any) => {
+        const departureTime = parseTimeString(viagem.horario_saida);
+        const durationMinutes = 90; // 1h30 de viagem
+        
+        return {
+          id: viagem.id,
+          origin: viagem.origem,
+          destination: viagem.destino,
+          departure_time: departureTime,
+          arrival_time: calculateArrivalTime(departureTime, durationMinutes),
+          boarding_time: departureTime,
+          date: format(new Date(viagem.data_viagem), 'yyyy-MM-dd'),
+          ferry_name: viagem.embarcacao_nome,
+          company: viagem.operadora,
+          available_seats: viagem.vagas_disponiveis,
+          total_seats: viagem.capacidade_max_pedestres,
+          price: viagem.preco_pedestre,
+          price_passenger: viagem.preco_pedestre,
+          status: viagem.status === 'agendada' ? 'scheduled' : 
+                  viagem.status === 'embarcando' ? 'boarding' : 
+                  viagem.status === 'partiu' ? 'active' : 
+                  viagem.status === 'chegou' ? 'completed' : 
+                  viagem.status === 'cancelada' ? 'cancelled' : 'scheduled',
+          gate: 'Portão 1',
+          duration_minutes: durationMinutes,
+          created_at: new Date().toISOString(),
+        };
+      });
 
       set({ trips: mappedTrips });
     } catch (error: any) {

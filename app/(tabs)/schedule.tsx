@@ -135,13 +135,15 @@ export default function SchedulePage() {
               Tentar novamente
             </Button>
           </View>
-        ) : trips.length === 0 ? (
+        ) : trips.filter(t => t.date === format(selectedDate, 'yyyy-MM-dd')).length === 0 ? (
           <View style={styles.emptyContainer}>
             <MaterialIcons name="event-busy" size={48} color="#CCCCCC" />
             <Text style={styles.emptyText}>Nenhuma viagem disponível para esta data</Text>
           </View>
         ) : (
-          trips.map((trip) => (
+          trips
+            .filter(t => t.date === format(selectedDate, 'yyyy-MM-dd'))
+            .map((trip) => (
           <TouchableOpacity 
             key={trip.id} 
             activeOpacity={0.7}

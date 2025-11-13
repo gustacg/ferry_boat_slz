@@ -119,6 +119,7 @@ export interface Ticket {
   created_at: string;
   used_at?: string | null;
   cancelled_at?: string | null;
+  grupo_id?: string | null;
   
   // Relacionamento com Trip
   trips?: Trip;
@@ -150,6 +151,26 @@ export interface MinhaPassagem {
   usuario_id?: string;
 }
 
+// ==================== TARIFAS ====================
+
+export interface Tarifa {
+  id: string;
+  tipo: 'passageiro' | 'veiculo';
+  descricao: string;
+  codigo: string;
+  valor_vazio: number;
+  valor_carregado: number;
+  peso_m2: number;
+  requer_idade: boolean;
+  requer_documento: boolean;
+  requer_placa: boolean;
+  requer_modelo: boolean;
+  idade_minima: number | null;
+  idade_maxima: number | null;
+  observacao: string | null;
+  ativo: boolean;
+}
+
 // ==================== PASSAGEIROS ====================
 
 export type PassengerCategory = 
@@ -163,8 +184,10 @@ export interface PassengerInfo {
   id: string;
   name: string;
   cpf: string;
+  age?: number;
   category: PassengerCategory;
   is_driver: boolean;
+  tarifa_id?: string;
 }
 
 export const PASSENGER_PRICES: Record<PassengerCategory, number> = {
@@ -174,6 +197,31 @@ export const PASSENGER_PRICES: Record<PassengerCategory, number> = {
   disabled: 0,     // Gratuito
   student: 12.00,
 };
+
+// ==================== ITEM DE COMPRA (PASSAGEIRO OU VEÍCULO) ====================
+
+export interface ItemCompra {
+  id: string;
+  tipo: 'passageiro' | 'veiculo';
+  tarifa_id: string;
+  tarifa_descricao: string;
+  tarifa_valor: number;
+  
+  // Campos para passageiro
+  nome?: string;
+  cpf?: string;
+  idade?: number;
+  
+  // Campos para veículo
+  placa?: string;
+  modelo?: string;
+  eh_carregado?: boolean;
+  motorista_id?: string; // ID do passageiro que é motorista deste veículo
+  
+  // Campos adicionais
+  peso_m2: number;
+  is_driver?: boolean; // DEPRECATED: usar motorista_id nos veículos
+}
 
 // ==================== VEÍCULOS ====================
 

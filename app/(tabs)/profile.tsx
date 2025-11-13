@@ -333,14 +333,17 @@ const styles = StyleSheet.create({
   },
   statsContainer: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: 12,
   },
   statCard: {
     flex: 1,
+    minWidth: 150,
     backgroundColor: '#FFFFFF',
     borderRadius: 12,
     padding: 20,
     alignItems: 'center',
+    justifyContent: 'center',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
@@ -348,18 +351,20 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   statNumber: {
-    fontSize: 36,
+    fontSize: 32,
     fontWeight: 'bold',
     color: '#0066CC',
     marginBottom: 8,
+    textAlign: 'center',
   },
   statNumberGreen: {
     color: '#4CAF50',
   },
   statLabel: {
-    fontSize: 14,
+    fontSize: 13,
     color: '#666666',
     textAlign: 'center',
+    flexWrap: 'wrap',
   },
   configRow: {
     flexDirection: 'row',

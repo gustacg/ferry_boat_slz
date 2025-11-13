@@ -3,14 +3,13 @@ import LoadingSpinner from '@/components/LoadingSpinner';
 import { useAuthStore } from '@/stores/authStore';
 import { useQueueStore } from '@/stores/queueStore';
 import { MaterialIcons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { router } from 'expo-router';
 import React, { useEffect } from 'react';
 import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Button, Card } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function QueuePage() {
-  const router = useRouter();
   const { user } = useAuthStore();
   const { queueData, totalInQueue, isLoading, loadQueuePosition, refresh } = useQueueStore();
   const [refreshing, setRefreshing] = React.useState(false);
@@ -67,6 +66,8 @@ export default function QueuePage() {
           <Button 
             mode="contained" 
             style={styles.emptyButton}
+            buttonColor="#0066CC"
+            textColor="#FFFFFF"
             onPress={() => router.push('/(tabs)/schedule')}
           >
             Ver Horários
@@ -114,9 +115,24 @@ export default function QueuePage() {
           </Card.Content>
           <Card.Actions style={styles.cardActions}>
             <Button 
+              mode="contained" 
+              style={styles.qrButton} 
+              labelStyle={styles.buttonLabel} 
+              buttonColor="#0066CC"
+              textColor="#FFFFFF"
+              icon="qrcode"
+              onPress={() => router.push({
+                pathname: '/trip-qrcode',
+                params: { ticketId: queueData.passagem_id }
+              })}
+            >
+              Ver QR Code
+            </Button>
+            <Button 
               mode="outlined" 
               style={styles.button} 
               labelStyle={styles.buttonLabel} 
+              textColor="#0066CC"
               onPress={onRefresh}
               loading={refreshing}
             >
@@ -160,22 +176,6 @@ export default function QueuePage() {
             </Text>
           </View>
         </View>
-
-        <Text style={styles.sectionTitle}>Passageiro</Text>
-        <Card style={styles.card}>
-          <Card.Content>
-            <View style={styles.passengerRow}>
-              <MaterialIcons name="person" size={20} color="#0066CC" />
-              <Text style={styles.passengerText}>{queueData.nome_passageiro}</Text>
-            </View>
-            <View style={styles.passengerRow}>
-              <MaterialIcons name="confirmation-number" size={20} color="#0066CC" />
-              <Text style={styles.passengerText}>
-                {queueData.tipo_passagem === 'pedestre' ? 'Pedestre' : 'Veículo'}
-              </Text>
-            </View>
-          </Card.Content>
-        </Card>
       </ScrollView>
     </SafeAreaView>
   );
@@ -277,6 +277,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingBottom: 16,
     flexDirection: 'column',
+  },
+  qrButton: {
+    width: '100%',
+    marginVertical: 8,
+    backgroundColor: '#0066CC',
   },
   button: {
     width: '100%',

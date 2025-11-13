@@ -18,6 +18,7 @@ interface QueueData {
   vagas_disponiveis: number;
   capacidade_max_veiculos: number;
   veiculos_atuais: number;
+  passagem_id: string;
 }
 
 interface QueueState {
@@ -107,6 +108,7 @@ export const useQueueStore = create<QueueState>((set, get) => ({
           vagas_disponiveis: data.passagens.viagens.capacidade_max_pedestres - data.passagens.viagens.pedestres_atuais,
           capacidade_max_veiculos: data.passagens.viagens.capacidade_max_veiculos,
           veiculos_atuais: data.passagens.viagens.veiculos_atuais,
+          passagem_id: data.passagem_id,
         };
 
         // Busca total de pessoas na fila para a mesma viagem

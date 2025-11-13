@@ -4,7 +4,7 @@ import { ComponentProps } from 'react';
 
 // Componente auxiliar para o ícone da aba para evitar repetição
 function TabBarIcon({ name, color }: { name: ComponentProps<typeof Ionicons>['name']; color: string }) {
-  return <Ionicons size={28} style={{ marginBottom: -3 }} name={name} color={color} />;
+  return <Ionicons size={24} name={name} color={color} />;
 }
 
 export default function TabLayout() {
@@ -12,12 +12,24 @@ export default function TabLayout() {
     <Tabs
       screenOptions={{
         tabBarActiveTintColor: '#0066CC',
-        tabBarInactiveTintColor: '#0066CC',
+        tabBarInactiveTintColor: '#888888',
         tabBarStyle: {
           backgroundColor: '#FFFFFF',
+          borderTopWidth: 1,
           borderTopColor: '#E0E0E0',
+          height: 65,
+          paddingBottom: 8,
+          paddingTop: 8,
         },
-        headerShown: false, // Desativa cabeçalho padrão para evitar duplicação
+        tabBarLabelStyle: {
+          fontSize: 11,
+          fontWeight: '600',
+          marginTop: 2,
+        },
+        tabBarIconStyle: {
+          marginTop: 0,
+        },
+        headerShown: false,
       }}
     >
       {/* Tela Inicial */}
