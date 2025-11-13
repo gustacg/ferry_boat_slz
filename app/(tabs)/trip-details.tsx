@@ -299,25 +299,6 @@ export default function TripDetailsPage() {
           Alert.alert('Erro', `CPF inválido: ${item.cpf}`);
         return false;
       }
-        
-        // Verifica se tarifa requer idade
-        const tarifa = tarifas.find(t => t.id === item.tarifa_id);
-        if (tarifa?.requer_idade && !item.idade) {
-          Alert.alert('Erro', 'Preencha a idade para esta tarifa');
-          return false;
-        }
-        
-        // Valida faixa etária
-        if (tarifa?.requer_idade && item.idade) {
-          if (tarifa.idade_minima !== null && item.idade < tarifa.idade_minima) {
-            Alert.alert('Erro', `Idade mínima para "${tarifa.descricao}" é ${tarifa.idade_minima} anos`);
-            return false;
-          }
-          if (tarifa.idade_maxima !== null && item.idade > tarifa.idade_maxima) {
-            Alert.alert('Erro', `Idade máxima para "${tarifa.descricao}" é ${tarifa.idade_maxima} anos`);
-            return false;
-          }
-        }
       } else if (item.tipo === 'veiculo') {
         if (!item.placa?.trim()) {
           Alert.alert('Erro', 'Preencha a placa de todos os veículos');
@@ -327,10 +308,7 @@ export default function TripDetailsPage() {
           Alert.alert('Erro', 'Preencha o modelo de todos os veículos');
           return false;
         }
-        if (!item.motorista_id) {
-          Alert.alert('Erro', 'Selecione o motorista para todos os veículos');
-          return false;
-        }
+        // motorista_id é opcional - veículo pode vir sem motorista específico
       }
     }
     
@@ -370,8 +348,16 @@ export default function TripDetailsPage() {
     setIsProcessing(true);
 
     try {
-      // Gera um grupo_id único para todas as passagens desta compra
-      const grupo_id = `${Date.now()}-${Math.random().toString(36).substring(2, 15)}`;
+      // Gera um UUID válido para o grupo de passagens
+      // Usando uma implementação simples de UUID v4
+      const generateUUID = () => {
+        return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+          const r = Math.random() * 16 | 0;
+          const v = c === 'x' ? r : (r & 0x3 | 0x8);
+          return v.toString(16);
+        });
+      };
+      const grupo_id = generateUUID();
       
       // Separa passageiros e veículos
       const passageiros = items.filter(item => item.tipo === 'passageiro');
@@ -473,11 +459,11 @@ export default function TripDetailsPage() {
       Alert.alert(
         'Sucesso!',
         items.length > 1 
-          ? `${items.length} passagens foram criadas com sucesso! Todas compartilham o mesmo QR Code.`
+          ? `${items.length} passagens foram criadas com sucesso! Cada uma possui seu próprio QR Code.`
           : 'Sua passagem foi criada com sucesso!',
         [
           {
-            text: 'Ver QR Code',
+            text: 'Ver QR Code' + (items.length > 1 ? 's' : ''),
             onPress: () => {
               if (passagensCriadas.length > 0) {
                 router.push({
@@ -805,7 +791,10 @@ export default function TripDetailsPage() {
                             anchor={
                               <Button
                                 mode="outlined"
-                                onPress={() => setDriverMenuVisible(item.id)}
+                                onPress={() => {
+                                  // Toggle: se já está aberto, fecha; senão, abre
+                                  setDriverMenuVisible(prev => prev === item.id ? null : item.id);
+                                }}
                                 style={styles.driverSelectorButton}
                                 contentStyle={styles.driverSelectorButtonContent}
                                 textColor="#0066CC"
@@ -820,10 +809,20 @@ export default function TripDetailsPage() {
                                       const passageiroIndex = items.filter(i => i.tipo === 'passageiro').findIndex(i => i.id === item.motorista_id);
                                       return `Passageiro ${passageiroIndex + 1}`;
                                     })()
-                                  : 'Selecionar motorista'}
+                                  : 'Nenhum (opcional)'}
                               </Button>
                             }
                           >
+                            {/* Opção para nenhum motorista */}
+                            <Menu.Item
+                              key="none"
+                              onPress={() => {
+                                updateItem(item.id, 'motorista_id', undefined);
+                                setDriverMenuVisible(null);
+                              }}
+                              title="Nenhum (todos pagam)"
+                              leadingIcon={!item.motorista_id ? 'check' : 'close'}
+                            />
                             {items
                               .filter(i => i.tipo === 'passageiro')
                               .map((passageiro, idx) => {
@@ -836,30 +835,24 @@ export default function TripDetailsPage() {
                                   <Menu.Item
                                     key={passageiro.id}
                                     onPress={() => {
-                                      if (jaEhMotorista) {
-                                        Alert.alert(
-                                          'Atenção',
-                                          'Este passageiro já é motorista de outro veículo. Um passageiro pode ser motorista de apenas um veículo.',
-                                          [{ text: 'OK' }]
-                                        );
-                                        setDriverMenuVisible(null);
-                                        return;
-                                      }
                                       updateItem(item.id, 'motorista_id', passageiro.id);
                                       setDriverMenuVisible(null);
                                     }}
-                                    title={passageiro.nome?.trim() || `Passageiro ${idx + 1}`}
-                                    titleStyle={jaEhMotorista ? { color: '#999999' } : undefined}
-                                    leadingIcon={item.motorista_id === passageiro.id ? 'check' : jaEhMotorista ? 'account-off' : 'account'}
+                                    title={
+                                      (passageiro.nome?.trim() || `Passageiro ${idx + 1}`) +
+                                      (jaEhMotorista ? ' (já motorista)' : '')
+                                    }
+                                    titleStyle={jaEhMotorista ? { color: '#999999', fontStyle: 'italic' } : undefined}
+                                    leadingIcon={item.motorista_id === passageiro.id ? 'check' : 'account'}
                                   />
                                 );
                               })}
                           </Menu>
-                          {item.motorista_id && (
-                            <Text style={styles.driverSelectorHint}>
-                              ✓ Motorista não paga passagem
-                            </Text>
-                          )}
+                          <Text style={styles.driverSelectorHint}>
+                            {item.motorista_id 
+                              ? '✓ Motorista não paga passagem'
+                              : 'ℹ️ Sem motorista: todos pagam normalmente'}
+                          </Text>
                         </View>
 
                         {tarifa && tarifa.valor_carregado > 0 && (

@@ -14,9 +14,18 @@ export default function QueuePage() {
   const { queueData, totalInQueue, isLoading, loadQueuePosition, refresh } = useQueueStore();
   const [refreshing, setRefreshing] = React.useState(false);
 
+  // Auto-atualização a cada 10 segundos
   useEffect(() => {
     if (user?.id) {
       loadQueuePosition(user.id);
+
+      // Configura intervalo de 10 segundos
+      const interval = setInterval(() => {
+        loadQueuePosition(user.id);
+      }, 10000);
+
+      // Limpa intervalo ao desmontar
+      return () => clearInterval(interval);
     }
   }, [user?.id]);
 
@@ -48,6 +57,34 @@ export default function QueuePage() {
 
   if (isLoading) {
     return <LoadingSpinner fullScreen message="Carregando fila..." />;
+  }
+
+  // Se não está autenticado, redireciona para login
+  if (!user) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.header}>
+          <Text style={styles.headerTitle}>Fila ao vivo</Text>
+          <Text style={styles.headerSubtitle}>Faça login para acessar</Text>
+        </View>
+        <View style={styles.emptyContainer}>
+          <MaterialIcons name="login" size={64} color="#CCCCCC" />
+          <Text style={styles.emptyTitle}>Login necessário</Text>
+          <Text style={styles.emptySubtitle}>
+            Faça login para acompanhar sua posição na fila
+          </Text>
+          <Button 
+            mode="contained" 
+            style={styles.emptyButton}
+            buttonColor="#0066CC"
+            textColor="#FFFFFF"
+            onPress={() => router.push('/login')}
+          >
+            Fazer Login
+          </Button>
+        </View>
+      </SafeAreaView>
+    );
   }
 
   if (!queueData) {
@@ -83,7 +120,7 @@ export default function QueuePage() {
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Fila ao vivo</Text>
-        <Text style={styles.headerSubtitle}>Acompanhe sua posição</Text>
+        <Text style={styles.headerSubtitle}>Atualização automática a cada 10s</Text>
       </View>
       <ScrollView 
         contentContainerStyle={styles.content}

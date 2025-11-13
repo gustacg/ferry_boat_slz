@@ -113,6 +113,8 @@ export default function LoginPage() {
               outlineColor="#E0E0E0"
               activeOutlineColor="#0066CC"
               placeholder="seu@email.com"
+              textColor="#000000"
+              theme={{ colors: { onSurfaceVariant: '#000000' } }}
             />
             {errors.email && <Text style={styles.errorText}>{errors.email}</Text>}
 
@@ -138,6 +140,8 @@ export default function LoginPage() {
               style={styles.input}
               outlineColor="#E0E0E0"
               activeOutlineColor="#0066CC"
+              textColor="#000000"
+              theme={{ colors: { onSurfaceVariant: '#000000' } }}
             />
             {errors.password && <Text style={styles.errorText}>{errors.password}</Text>}
 
@@ -247,6 +251,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     letterSpacing: 0.5,
+    color: '#FFFFFF',
   },
   signupContainer: {
     flexDirection: 'row',

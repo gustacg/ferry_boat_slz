@@ -89,6 +89,12 @@ export default function TabLayout() {
 
       {/* Páginas auxiliares - ocultas do menu inferior */}
       <Tabs.Screen
+        name="queue-select"
+        options={{
+          href: null, // Remove do menu inferior
+        }}
+      />
+      <Tabs.Screen
         name="trip-details"
         options={{
           href: null, // Remove do menu inferior

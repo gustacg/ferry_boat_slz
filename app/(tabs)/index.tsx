@@ -94,13 +94,53 @@ export default function HomePage() {
     setRefreshing(false);
   };
 
-  // Busca a passagem ativa do usuário (se houver)
-  const activeTicket = tickets.find(t => t.status === 'active');
+  // Busca as passagens ativas do usuário com viagens futuras
+  const now = new Date();
+  const currentTime = now.getHours() * 60 + now.getMinutes();
+  const today = format(now, 'yyyy-MM-dd');
+
+  const activeTicketsWithFutureTrips = tickets.filter((t) => {
+    if (t.status !== 'active' || !t.trips) return false;
+    
+    const tripDate = t.trips.date;
+    const tripStatus = t.trips.status;
+    
+    // Só mostra viagens programadas ou embarcando
+    if (tripStatus !== 'scheduled' && tripStatus !== 'boarding') return false;
+    
+    // Se a data da viagem for anterior a hoje, não mostra
+    if (tripDate < today) return false;
+    
+    // Se for hoje, verifica se o horário já passou
+    if (tripDate === today) {
+      try {
+        const tripTimeStr = t.trips.departure_time;
+        if (!tripTimeStr || tripTimeStr === '--:--') return true;
+        
+        const [hours, minutes] = tripTimeStr.split(':').map(Number);
+        if (isNaN(hours) || isNaN(minutes)) return true;
+        
+        const tripMinutes = hours * 60 + minutes;
+        return tripMinutes > (currentTime - 5);
+      } catch {
+        return true;
+      }
+    }
+    
+    return true;
+  });
+
+  // Ordena por data e horário mais próximo
+  const sortedActiveTickets = activeTicketsWithFutureTrips.sort((a, b) => {
+    const dateA = new Date(`${a.trips?.date}T${a.trips?.departure_time}`);
+    const dateB = new Date(`${b.trips?.date}T${b.trips?.departure_time}`);
+    return dateA.getTime() - dateB.getTime();
+  });
+
+  // Pega a viagem mais próxima
+  const activeTicket = sortedActiveTickets[0];
   
   // Busca próximas viagens que ainda não aconteceram
-  const now = new Date();
-  const currentTime = now.getHours() * 60 + now.getMinutes(); // Minutos desde meia-noite
-  const today = format(now, 'yyyy-MM-dd');
   
   const upcomingTrips = trips
     .filter(t => {
@@ -219,9 +259,18 @@ export default function HomePage() {
                     labelStyle={styles.followTripButtonText}
                     buttonColor="#0066CC"
                     textColor="#FFFFFF"
-                    onPress={() => router.push('/(tabs)/queue')}
+                    onPress={() => {
+                      // Se tiver múltiplas passagens ativas, vai para seleção
+                      if (sortedActiveTickets.length > 1) {
+                        router.push('/(tabs)/queue-select');
+                      } else {
+                        router.push('/(tabs)/queue');
+                      }
+                    }}
                   >
-                    Ver posição na fila
+                    {sortedActiveTickets.length > 1 
+                      ? `Ver filas (${sortedActiveTickets.length})` 
+                      : 'Ver posição na fila'}
                   </Button>
                 </Card.Content>
               </Card>

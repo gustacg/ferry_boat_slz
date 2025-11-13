@@ -12,7 +12,7 @@ import { Button, Card } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function TicketsPage() {
-  const { isAuthenticated, user, isLoading: authLoading } = useAuthStore();
+  const { isAuthenticated, user, isLoading: authLoading, loadProfile } = useAuthStore();
   const { tickets, fetchTickets, isLoading, filter, setFilter } = useTicketsStore();
   const [refreshing, setRefreshing] = useState(false);
   const [activeTab, setActiveTab] = useState<TicketStatus>('active');
@@ -226,9 +226,10 @@ export default function TicketsPage() {
 
       Alert.alert('Sucesso', mensagem);
 
-      // Recarrega a lista
+      // Recarrega a lista e as estatísticas do perfil
       if (user?.id) {
         fetchTickets(user.id);
+        loadProfile(); // Atualiza estatísticas do perfil
       }
     } catch (error: any) {
       console.error('Erro ao cancelar passagem:', error);

@@ -3,12 +3,16 @@ import { Perfil } from '@/types';
 import { Session, User } from '@supabase/supabase-js';
 import { create } from 'zustand';
 
+// Tipo de role do usuário
+export type UserRole = 'admin' | 'operador' | 'usuario';
+
 // Interface que define o estado da autenticação
 interface AuthState {
   // Estado atual
   user: User | null;
   profile: Perfil | null;
   session: Session | null;
+  role: UserRole | null;
   isLoading: boolean;
   isAuthenticated: boolean;
 
@@ -17,6 +21,7 @@ interface AuthState {
   signUp: (email: string, password: string, fullName: string, cpf: string, phone?: string) => Promise<{ error: any; session?: Session | null }>;
   signOut: () => Promise<void>;
   loadProfile: () => Promise<void>;
+  loadUserRole: () => Promise<void>;
   updateProfile: (updates: Partial<Perfil>) => Promise<{ error: any }>;
   initialize: () => Promise<void>;
 }
@@ -54,6 +59,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
   profile: null,
   session: null,
+  role: null,
   isLoading: true,
   isAuthenticated: false,
 
@@ -75,8 +81,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           isAuthenticated: true,
         });
 
-        // Carrega o perfil do usuário
+        // Carrega o perfil e role do usuário
         await get().loadProfile();
+        await get().loadUserRole();
       }
 
       // Escuta mudanças na autenticação
@@ -88,11 +95,13 @@ export const useAuthStore = create<AuthState>((set, get) => ({
             isAuthenticated: true,
           });
           await get().loadProfile();
+          await get().loadUserRole();
         } else {
           set({
             user: null,
             profile: null,
             session: null,
+            role: null,
             isAuthenticated: false,
           });
         }
@@ -126,6 +135,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       });
 
       await get().loadProfile();
+      await get().loadUserRole();
 
       return { error: null };
     } catch (error: any) {
@@ -181,6 +191,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         });
 
         await get().loadProfile();
+        await get().loadUserRole();
       }
 
       return { error: null, session: data.session };
@@ -204,6 +215,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         user: null,
         profile: null,
         session: null,
+        role: null,
         isAuthenticated: false,
       });
     } catch (error) {
@@ -233,6 +245,34 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       }
     } catch (error) {
       console.error('Erro ao carregar perfil:', error);
+    }
+  },
+
+  /**
+   * Carrega o role do usuário
+   */
+  loadUserRole: async () => {
+    try {
+      const user = get().user;
+      if (!user) return;
+
+      // Busca o papel do usuário
+      const { data } = await supabase
+        .from('papeis_usuario')
+        .select('papel')
+        .eq('usuario_id', user.id)
+        .order('criado_em', { ascending: false })
+        .limit(1)
+        .single();
+
+      if (data) {
+        set({ role: data.papel as UserRole });
+      } else {
+        set({ role: 'usuario' });
+      }
+    } catch (error) {
+      console.error('Erro ao carregar role:', error);
+      set({ role: 'usuario' });
     }
   },
 
