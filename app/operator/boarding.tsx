@@ -56,13 +56,6 @@ export default function BoardingControlPage() {
       if (tripError) throw tripError;
 
       const today = new Date().toISOString().split('T')[0];
-      const now = new Date();
-      const currentHour = now.getHours();
-      const currentMinute = now.getMinutes();
-      const currentTimeInMinutes = currentHour * 60 + currentMinute;
-
-      const [hour, minute] = tripData.horario_saida.split(':').map(Number);
-      const tripTimeInMinutes = hour * 60 + minute;
 
       // Verifica se é hoje
       if (tripData.data_viagem !== today) {
@@ -74,22 +67,11 @@ export default function BoardingControlPage() {
         return;
       }
 
-      // Verifica se está dentro de 30 minutos antes
-      if (tripTimeInMinutes > (currentTimeInMinutes + 30)) {
-        const minutesUntil = tripTimeInMinutes - currentTimeInMinutes - 30;
-        Alert.alert(
-          'Aguarde',
-          `Esta viagem estará disponível em ${minutesUntil} minutos (30 minutos antes do horário de partida).`,
-          [{ text: 'OK', onPress: () => router.back() }]
-        );
-        return;
-      }
-
-      // Se passou na validação, carrega os dados completos
+      // Carrega os dados completos (sem restrição de horário)
       loadTripData();
     } catch (error) {
-      console.error('Erro ao validar horário:', error);
-      Alert.alert('Erro', 'Não foi possível validar o horário da viagem.');
+      console.error('Erro ao validar viagem:', error);
+      Alert.alert('Erro', 'Não foi possível validar a viagem.');
       router.back();
     }
   };
@@ -163,62 +145,74 @@ export default function BoardingControlPage() {
 
   const handleStartBoarding = async () => {
     try {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('viagens')
         .update({ status: 'embarcando' })
-        .eq('id', tripId);
+        .eq('id', tripId)
+        .select();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Erro ao atualizar status:', error);
+        throw error;
+      }
 
       await loadTripData();
-      Alert.alert('Sucesso', 'Embarque iniciado!');
-    } catch (error) {
+      Alert.alert('Sucesso', 'Embarque iniciado! Você pode começar a escanear QR codes.');
+    } catch (error: any) {
       console.error('Erro ao iniciar embarque:', error);
-      Alert.alert('Erro', 'Não foi possível iniciar o embarque.');
+      Alert.alert('Erro', error.message || 'Não foi possível iniciar o embarque.');
     }
   };
 
   const handleDepartTrip = async () => {
     try {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('viagens')
         .update({
           status: 'partiu',
           horario_saida_real: new Date().toISOString(),
         })
-        .eq('id', tripId);
+        .eq('id', tripId)
+        .select();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Erro ao marcar partida:', error);
+        throw error;
+      }
 
       setShowDepartDialog(false);
       Alert.alert('Sucesso', 'Viagem marcada como partiu!', [
         { text: 'OK', onPress: () => router.back() },
       ]);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erro ao marcar partida:', error);
-      Alert.alert('Erro', 'Não foi possível marcar a partida.');
+      Alert.alert('Erro', error.message || 'Não foi possível marcar a partida.');
     }
   };
 
   const handleCancelTrip = async () => {
     try {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('viagens')
         .update({
           status: 'cancelada',
           motivo_cancelamento: 'Cancelada pelo operador',
         })
-        .eq('id', tripId);
+        .eq('id', tripId)
+        .select();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Erro ao cancelar:', error);
+        throw error;
+      }
 
       setShowCancelDialog(false);
       Alert.alert('Viagem Cancelada', 'A viagem foi cancelada com sucesso.', [
         { text: 'OK', onPress: () => router.back() },
       ]);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erro ao cancelar viagem:', error);
-      Alert.alert('Erro', 'Não foi possível cancelar a viagem.');
+      Alert.alert('Erro', error.message || 'Não foi possível cancelar a viagem.');
     }
   };
 

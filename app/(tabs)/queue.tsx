@@ -217,7 +217,7 @@ export default function QueuePage() {
               icon="qrcode"
               onPress={() => router.push({
                 pathname: '/trip-qrcode',
-                params: { ticketId: queueData.passagem_id }
+                params: { ticketId: ticketId || queueData.passagem_id }
               })}
             >
               Ver QR Code

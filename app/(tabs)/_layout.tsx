@@ -1,6 +1,7 @@
+import { useAuthStore } from '@/stores/authStore';
 import { Ionicons } from '@expo/vector-icons';
-import { Tabs } from 'expo-router';
-import { ComponentProps } from 'react';
+import { Tabs, useRouter } from 'expo-router';
+import { ComponentProps, useEffect } from 'react';
 
 // Componente auxiliar para o ícone da aba para evitar repetição
 function TabBarIcon({ name, color }: { name: ComponentProps<typeof Ionicons>['name']; color: string }) {
@@ -8,6 +9,17 @@ function TabBarIcon({ name, color }: { name: ComponentProps<typeof Ionicons>['na
 }
 
 export default function TabLayout() {
+  const router = useRouter();
+  const { role, isAuthenticated, isLoading } = useAuthStore();
+
+  // Redireciona operadores para o painel correto
+  useEffect(() => {
+    if (!isLoading && isAuthenticated && (role === 'operador' || role === 'admin')) {
+      console.log('🔄 Operador detectado nas tabs, redirecionando para painel...');
+      router.replace('/operator');
+    }
+  }, [role, isAuthenticated, isLoading]);
+
   return (
     <Tabs
       screenOptions={{

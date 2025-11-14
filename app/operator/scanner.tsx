@@ -17,7 +17,7 @@ export default function ScannerPage() {
   const [processing, setProcessing] = useState(false);
 
   useEffect(() => {
-    if (!user || role !== 'operador') {
+    if (!user || (role !== 'operador' && role !== 'admin')) {
       Alert.alert('Acesso negado', 'Você não tem permissão para acessar esta área.', [
         { text: 'OK', onPress: () => router.replace('/(tabs)') },
       ]);

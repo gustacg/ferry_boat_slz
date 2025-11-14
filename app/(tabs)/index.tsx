@@ -140,6 +140,18 @@ export default function HomePage() {
   // Pega a viagem mais próxima
   const activeTicket = sortedActiveTickets[0];
   
+  // Conta viagens únicas considerando grupo_id (passagens do mesmo grupo na mesma viagem = 1 fila)
+  const uniqueTripsCount = sortedActiveTickets.reduce((acc, ticket) => {
+    const key = ticket.grupo_id 
+      ? `${ticket.trip_id}-${ticket.grupo_id}` 
+      : `${ticket.trip_id}-${ticket.id}`;
+    
+    if (!acc.has(key)) {
+      acc.add(key);
+    }
+    return acc;
+  }, new Set<string>()).size;
+  
   // Busca próximas viagens que ainda não aconteceram
   
   const upcomingTrips = trips
@@ -260,10 +272,10 @@ export default function HomePage() {
                     buttonColor="#0066CC"
                     textColor="#FFFFFF"
                     onPress={() => {
-                      // Se tiver múltiplas passagens ativas, vai para seleção
-                      if (sortedActiveTickets.length > 1) {
+                      // Se tiver múltiplas viagens únicas, vai para seleção
+                      if (uniqueTripsCount > 1) {
                         router.push('/(tabs)/queue-select');
-                      } else if (sortedActiveTickets.length === 1) {
+                      } else if (uniqueTripsCount === 1) {
                         router.push({
                           pathname: '/(tabs)/queue',
                           params: { ticketId: sortedActiveTickets[0].id }
@@ -273,8 +285,8 @@ export default function HomePage() {
                       }
                     }}
                   >
-                    {sortedActiveTickets.length > 1 
-                      ? `Suas filas (${sortedActiveTickets.length})` 
+                    {uniqueTripsCount > 1 
+                      ? `Suas filas (${uniqueTripsCount})` 
                       : 'Ver posição na fila'}
                   </Button>
                 </Card.Content>

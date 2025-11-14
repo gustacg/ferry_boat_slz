@@ -27,6 +27,34 @@ export default function QueueSelectPage() {
       (ticket.trips.status === 'boarding' || ticket.trips.status === 'scheduled')
   );
 
+  // Agrupa passagens por viagem e grupo_id
+  // Passagens do mesmo grupo_id na mesma viagem são tratadas como uma única fila
+  // Passagens sem grupo_id ou de grupos diferentes aparecem separadamente
+  const uniqueTrips = activeTicketsWithTrips.reduce((acc, ticket) => {
+    const key = ticket.grupo_id 
+      ? `${ticket.trip_id}-${ticket.grupo_id}` 
+      : `${ticket.trip_id}-${ticket.id}`;
+    
+    // Se já temos essa combinação viagem+grupo, não adiciona novamente
+    if (!acc.find(t => {
+      const existingKey = t.grupo_id 
+        ? `${t.trip_id}-${t.grupo_id}` 
+        : `${t.trip_id}-${t.id}`;
+      return existingKey === key;
+    })) {
+      acc.push(ticket);
+    }
+    return acc;
+  }, [] as typeof activeTicketsWithTrips);
+
+  // Conta quantas passagens cada grupo tem
+  const getGroupTicketCount = (ticket: typeof activeTicketsWithTrips[0]) => {
+    if (!ticket.grupo_id) return 1;
+    return activeTicketsWithTrips.filter(
+      t => t.grupo_id === ticket.grupo_id && t.trip_id === ticket.trip_id
+    ).length;
+  };
+
   // Formata data brasileira
   const formatDate = (dateStr: string) => {
     const date = new Date(dateStr);
@@ -45,7 +73,7 @@ export default function QueueSelectPage() {
     return <LoadingSpinner fullScreen message="Carregando passagens..." />;
   }
 
-  if (activeTicketsWithTrips.length === 0) {
+  if (uniqueTrips.length === 0) {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.header}>
@@ -68,9 +96,12 @@ export default function QueueSelectPage() {
     );
   }
 
-  // Se tiver apenas uma passagem, redireciona direto para a fila
-  if (activeTicketsWithTrips.length === 1) {
-    router.replace('/(tabs)/queue');
+  // Se tiver apenas uma viagem única, redireciona direto para a fila
+  if (uniqueTrips.length === 1) {
+    router.replace({
+      pathname: '/(tabs)/queue',
+      params: { ticketId: uniqueTrips[0].id }
+    });
     return <LoadingSpinner fullScreen message="Carregando fila..." />;
   }
 
@@ -79,70 +110,75 @@ export default function QueueSelectPage() {
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Selecionar Fila</Text>
         <Text style={styles.headerSubtitle}>
-          Você tem {activeTicketsWithTrips.length} viagens disponíveis
+          Você tem {uniqueTrips.length} {uniqueTrips.length === 1 ? 'viagem disponível' : 'viagens disponíveis'}
         </Text>
       </View>
 
       <ScrollView contentContainerStyle={styles.content}>
         <Text style={styles.sectionTitle}>Escolha a viagem:</Text>
 
-        {activeTicketsWithTrips.map((ticket) => (
-          <TouchableOpacity
-            key={ticket.id}
-            activeOpacity={0.7}
-            onPress={() =>
-              router.push({
-                pathname: '/(tabs)/queue',
-                params: { ticketId: ticket.id },
-              })
-            }
-          >
-            <Card style={styles.tripCard}>
-              <Card.Content>
-                <View style={styles.routeHeader}>
-                  <Text style={styles.routeTitle}>
-                    {ticket.trips?.origin} → {ticket.trips?.destination}
-                  </Text>
-                  <View
-                    style={[
-                      styles.statusBadge,
-                      {
-                        backgroundColor:
-                          ticket.trips?.status === 'boarding' ? '#4CAF50' : '#0066CC',
-                      },
-                    ]}
-                  >
-                    <Text style={styles.statusText}>
-                      {ticket.trips?.status === 'boarding' ? 'Embarcando' : 'Programada'}
+        {uniqueTrips.map((ticket) => {
+          const ticketCount = getGroupTicketCount(ticket);
+          return (
+            <TouchableOpacity
+              key={ticket.grupo_id ? `${ticket.trip_id}-${ticket.grupo_id}` : ticket.id}
+              activeOpacity={0.7}
+              onPress={() =>
+                router.push({
+                  pathname: '/(tabs)/queue',
+                  params: { ticketId: ticket.id },
+                })
+              }
+            >
+              <Card style={styles.tripCard}>
+                <Card.Content>
+                  <View style={styles.routeHeader}>
+                    <Text style={styles.routeTitle}>
+                      {ticket.trips?.origin} → {ticket.trips?.destination}
+                    </Text>
+                    <View
+                      style={[
+                        styles.statusBadge,
+                        {
+                          backgroundColor:
+                            ticket.trips?.status === 'boarding' ? '#4CAF50' : '#0066CC',
+                        },
+                      ]}
+                    >
+                      <Text style={styles.statusText}>
+                        {ticket.trips?.status === 'boarding' ? 'Embarcando' : 'Programada'}
+                      </Text>
+                    </View>
+                  </View>
+
+                  <View style={styles.infoRow}>
+                    <MaterialIcons name="event" size={20} color="#666666" />
+                    <Text style={styles.infoText}>
+                      {formatDate(ticket.trips?.date || '')} às{' '}
+                      {formatTime(ticket.trips?.departure_time || '')}
                     </Text>
                   </View>
-                </View>
 
-                <View style={styles.infoRow}>
-                  <MaterialIcons name="event" size={20} color="#666666" />
-                  <Text style={styles.infoText}>
-                    {formatDate(ticket.trips?.date || '')} às{' '}
-                    {formatTime(ticket.trips?.departure_time || '')}
-                  </Text>
-                </View>
+                  <View style={styles.infoRow}>
+                    <MaterialIcons name="directions-boat" size={20} color="#666666" />
+                    <Text style={styles.infoText}>{ticket.trips?.ferry_name}</Text>
+                  </View>
 
-                <View style={styles.infoRow}>
-                  <MaterialIcons name="directions-boat" size={20} color="#666666" />
-                  <Text style={styles.infoText}>{ticket.trips?.ferry_name}</Text>
-                </View>
+                  <View style={styles.infoRow}>
+                    <MaterialIcons name="confirmation-number" size={20} color="#666666" />
+                    <Text style={styles.infoText}>
+                      {ticketCount > 1 ? `${ticketCount} passagens (${ticket.ticket_code})` : ticket.ticket_code}
+                    </Text>
+                  </View>
 
-                <View style={styles.infoRow}>
-                  <MaterialIcons name="confirmation-number" size={20} color="#666666" />
-                  <Text style={styles.infoText}>{ticket.ticket_code}</Text>
-                </View>
-
-                <View style={styles.arrowContainer}>
-                  <MaterialIcons name="arrow-forward" size={24} color="#0066CC" />
-                </View>
-              </Card.Content>
-            </Card>
-          </TouchableOpacity>
-        ))}
+                  <View style={styles.arrowContainer}>
+                    <MaterialIcons name="arrow-forward" size={24} color="#0066CC" />
+                  </View>
+                </Card.Content>
+              </Card>
+            </TouchableOpacity>
+          );
+        })}
       </ScrollView>
     </SafeAreaView>
   );

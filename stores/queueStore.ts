@@ -148,14 +148,25 @@ export const useQueueStore = create<QueueState>((set, get) => ({
     try {
       set({ isLoading: true, error: null });
 
-      // Busca a posição na fila pela passagem específica
-      const { data, error } = await supabase
+      // Primeiro, busca a passagem para saber se ela tem grupo_id
+      const { data: passagemData, error: passagemError } = await supabase
+        .from('passagens')
+        .select('grupo_id, viagem_id')
+        .eq('id', ticketId)
+        .single();
+
+      if (passagemError) {
+        throw passagemError;
+      }
+
+      let filaQuery = supabase
         .from('fila_digital')
         .select(`
           *,
           passagens!inner (
             nome_passageiro,
             tipo_passagem,
+            grupo_id,
             viagens!inner (
               data_viagem,
               horario_saida,
@@ -174,8 +185,68 @@ export const useQueueStore = create<QueueState>((set, get) => ({
             )
           )
         `)
+        .eq('status', 'aguardando');
+
+      // Se a passagem tem grupo_id, busca pela viagem e grupo_id
+      // Caso contrário, busca pela passagem específica
+      if (passagemData.grupo_id) {
+        const { data, error } = await filaQuery
+          .eq('passagens.grupo_id', passagemData.grupo_id)
+          .eq('viagem_id', passagemData.viagem_id)
+          .limit(1)
+          .single();
+
+        if (error && error.code !== 'PGRST116') {
+          throw error;
+        }
+
+        if (!data) {
+          set({
+            queueData: null,
+            totalInQueue: 0,
+            isLoading: false,
+          });
+          return;
+        }
+
+        // Continue com os dados encontrados
+        const queueData: QueueData = {
+          id: data.id,
+          posicao: data.posicao,
+          horario_embarque_estimado: data.horario_embarque_estimado,
+          status: data.status,
+          nome_passageiro: data.passagens.nome_passageiro,
+          tipo_passagem: data.passagens.tipo_passagem,
+          data_viagem: data.passagens.viagens.data_viagem,
+          horario_saida: data.passagens.viagens.horario_saida,
+          origem: data.passagens.viagens.rotas.origem,
+          destino: data.passagens.viagens.rotas.destino,
+          embarcacao_nome: data.passagens.viagens.embarcacoes.nome,
+          operadora: data.passagens.viagens.embarcacoes.operadora,
+          vagas_disponiveis: data.passagens.viagens.capacidade_max_pedestres - data.passagens.viagens.pedestres_atuais,
+          capacidade_max_veiculos: data.passagens.viagens.capacidade_max_veiculos,
+          veiculos_atuais: data.passagens.viagens.veiculos_atuais,
+          passagem_id: data.passagem_id,
+        };
+
+        // Busca total de pessoas na fila para a mesma viagem
+        const { count } = await supabase
+          .from('fila_digital')
+          .select('*', { count: 'exact', head: true })
+          .eq('viagem_id', data.viagem_id)
+          .eq('status', 'aguardando');
+
+        set({
+          queueData,
+          totalInQueue: count || 0,
+          isLoading: false,
+        });
+        return;
+      }
+
+      // Se não tem grupo_id, busca pela passagem diretamente
+      const { data, error } = await filaQuery
         .eq('passagem_id', ticketId)
-        .eq('status', 'aguardando')
         .single();
 
       if (error && error.code !== 'PGRST116') { // Ignora erro de "não encontrado"

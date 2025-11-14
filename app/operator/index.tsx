@@ -3,10 +3,10 @@ import LoadingSpinner from '@/components/LoadingSpinner';
 import { supabase } from '@/services/supabase';
 import { useAuthStore } from '@/stores/authStore';
 import { MaterialIcons } from '@expo/vector-icons';
-import { router } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import { router, useFocusEffect } from 'expo-router';
+import React, { useCallback, useEffect, useState } from 'react';
 import { Alert, RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { Card } from 'react-native-paper';
+import { Card, IconButton } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 interface TripData {
@@ -26,7 +26,7 @@ interface TripData {
 }
 
 export default function OperatorHomePage() {
-  const { user, role, isLoading: authLoading } = useAuthStore();
+  const { user, role, isLoading: authLoading, signOut } = useAuthStore();
   const [trips, setTrips] = useState<TripData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -42,6 +42,15 @@ export default function OperatorHomePage() {
       }
     }
   }, [user, role, authLoading]);
+
+  // Recarrega viagens quando a tela receber foco (após voltar de outra página)
+  useFocusEffect(
+    useCallback(() => {
+      if (user && (role === 'operador' || role === 'admin')) {
+        loadTrips();
+      }
+    }, [user, role])
+  );
 
   const loadTrips = async () => {
     try {
@@ -76,24 +85,9 @@ export default function OperatorHomePage() {
 
       if (error) throw error;
 
-      // Filtra viagens para mostrar apenas 30 minutos antes do horário
-      const now = new Date();
-      const currentHour = now.getHours();
-      const currentMinute = now.getMinutes();
-      const currentTimeInMinutes = currentHour * 60 + currentMinute;
-
-      const filteredData = (data || []).filter((viagem: any) => {
-        const horarioSaida = viagem.horario_saida; // "HH:MM:SS"
-        const [hour, minute] = horarioSaida.split(':').map(Number);
-        const tripTimeInMinutes = hour * 60 + minute;
-        
-        // Mostra se estiver dentro de 30 minutos antes do horário ou se já passou
-        return tripTimeInMinutes <= (currentTimeInMinutes + 30);
-      });
-
       // Conta quantos estão na fila para cada viagem
       const tripsWithQueue = await Promise.all(
-        filteredData.map(async (viagem: any) => {
+        (data || []).map(async (viagem: any) => {
           const { count } = await supabase
             .from('fila_digital')
             .select('*', { count: 'exact', head: true })
@@ -167,6 +161,24 @@ export default function OperatorHomePage() {
     }
   };
 
+  const handleLogout = () => {
+    Alert.alert(
+      'Sair',
+      'Tem certeza que deseja sair da conta?',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        { 
+          text: 'Sair', 
+          style: 'destructive',
+          onPress: async () => {
+            await signOut();
+            router.replace('/login');
+          }
+        },
+      ]
+    );
+  };
+
   if (authLoading || isLoading) {
     return <LoadingSpinner fullScreen message="Carregando..." />;
   }
@@ -185,6 +197,13 @@ export default function OperatorHomePage() {
             <Text style={styles.headerSubtitle}>Controle de Embarque</Text>
           </View>
         </View>
+        <IconButton
+          icon="logout"
+          iconColor="#FFFFFF"
+          size={24}
+          onPress={handleLogout}
+          style={styles.logoutButton}
+        />
       </View>
 
       <ScrollView
@@ -237,6 +256,13 @@ export default function OperatorHomePage() {
                     </View>
 
                     <View style={styles.infoRow}>
+                      <MaterialIcons name="directions-car" size={18} color="#666666" />
+                      <Text style={styles.infoText}>
+                        {trip.veiculos_atuais}/{trip.capacidade_max_veiculos}
+                      </Text>
+                    </View>
+
+                    <View style={styles.infoRow}>
                       <MaterialIcons name="queue" size={18} color="#666666" />
                       <Text style={styles.infoText}>{trip.total_na_fila} na fila</Text>
                     </View>
@@ -264,10 +290,17 @@ const styles = StyleSheet.create({
     backgroundColor: '#0066CC',
     paddingHorizontal: 20,
     paddingVertical: 20,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
   headerContent: {
     flexDirection: 'row',
     alignItems: 'center',
+    flex: 1,
+  },
+  logoutButton: {
+    margin: 0,
   },
   headerText: {
     marginLeft: 16,
@@ -326,12 +359,13 @@ const styles = StyleSheet.create({
   },
   tripInfo: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    flexWrap: 'wrap',
     marginBottom: 8,
   },
   infoRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    marginRight: 16,
   },
   infoText: {
     marginLeft: 6,

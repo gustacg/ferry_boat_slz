@@ -64,9 +64,7 @@ export const useTripsStore = create<TripsState>((set, get) => ({
       const searchDate = date || get().selectedDate;
       const todayStr = format(new Date(), 'yyyy-MM-dd');
 
-      // Busca viagens na view viagens_disponiveis (já filtra viagens com vagas)
-      // Sempre busca viagens de hoje até os próximos 7 dias para ter dados disponíveis
-      // A página de horários fará o filtro por data específica
+      // Busca viagens disponíveis (com vagas) na view
       const nextWeek = new Date();
       nextWeek.setDate(nextWeek.getDate() + 7);
       const nextWeekStr = format(nextWeek, 'yyyy-MM-dd');
@@ -80,6 +78,58 @@ export const useTripsStore = create<TripsState>((set, get) => ({
         .order('horario_saida', { ascending: true });
 
       if (viagemError) throw viagemError;
+
+      // Busca também viagens canceladas (para mostrar o status aos usuários)
+      const { data: viagensCanceladas, error: canceladasError } = await supabase
+        .from('viagens')
+        .select(`
+          id,
+          data_viagem,
+          horario_saida,
+          status,
+          pedestres_atuais,
+          capacidade_max_pedestres,
+          rotas!inner (
+            origem,
+            destino
+          ),
+          embarcacoes!inner (
+            nome,
+            operadora
+          ),
+          horarios!inner (
+            preco_pedestre,
+            preco_veiculo
+          )
+        `)
+        .eq('status', 'cancelada')
+        .gte('data_viagem', todayStr)
+        .lte('data_viagem', nextWeekStr)
+        .order('data_viagem', { ascending: true })
+        .order('horario_saida', { ascending: true });
+
+      if (canceladasError) {
+        console.error('Erro ao buscar viagens canceladas:', canceladasError);
+      }
+
+      // Combina viagens disponíveis e canceladas
+      const todasViagens = [...(viagensData || [])];
+      
+      if (viagensCanceladas && viagensCanceladas.length > 0) {
+        viagensCanceladas.forEach((viagem: any) => {
+          todasViagens.push({
+            ...viagem,
+            vagas_disponiveis: 0,
+            percentual_ocupacao: 100,
+            embarcacao_nome: viagem.embarcacoes.nome,
+            operadora: viagem.embarcacoes.operadora,
+            origem: viagem.rotas.origem,
+            destino: viagem.rotas.destino,
+            preco_pedestre: viagem.horarios.preco_pedestre,
+            preco_veiculo: viagem.horarios.preco_veiculo,
+          });
+        });
+      }
 
       // Função auxiliar para calcular horário de chegada
       const calculateArrivalTime = (departureTime: string, durationMinutes: number = 90): string => {
@@ -101,8 +151,8 @@ export const useTripsStore = create<TripsState>((set, get) => ({
         }
       };
 
-      // Mapeia dados da view para o formato esperado pelo app
-      const mappedTrips: Trip[] = (viagensData || []).map((viagem: any) => {
+      // Mapeia dados combinados para o formato esperado pelo app
+      const mappedTrips: Trip[] = todasViagens.map((viagem: any) => {
         const departureTime = parseTimeString(viagem.horario_saida);
         const durationMinutes = 90; // 1h30 de viagem
         
