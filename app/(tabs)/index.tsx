@@ -263,13 +263,18 @@ export default function HomePage() {
                       // Se tiver múltiplas passagens ativas, vai para seleção
                       if (sortedActiveTickets.length > 1) {
                         router.push('/(tabs)/queue-select');
+                      } else if (sortedActiveTickets.length === 1) {
+                        router.push({
+                          pathname: '/(tabs)/queue',
+                          params: { ticketId: sortedActiveTickets[0].id }
+                        });
                       } else {
-                        router.push('/(tabs)/queue');
+                        router.push('/(tabs)/queue-select');
                       }
                     }}
                   >
                     {sortedActiveTickets.length > 1 
-                      ? `Ver filas (${sortedActiveTickets.length})` 
+                      ? `Suas filas (${sortedActiveTickets.length})` 
                       : 'Ver posição na fila'}
                   </Button>
                 </Card.Content>

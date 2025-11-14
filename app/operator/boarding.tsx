@@ -35,14 +35,64 @@ export default function BoardingControlPage() {
   const [showDepartDialog, setShowDepartDialog] = useState(false);
 
   useEffect(() => {
-    if (!user || role !== 'operador') {
+    if (!user || (role !== 'operador' && role !== 'admin')) {
       Alert.alert('Acesso negado', 'Você não tem permissão para acessar esta área.', [
         { text: 'OK', onPress: () => router.replace('/(tabs)') },
       ]);
     } else if (tripId) {
-      loadTripData();
+      validateTripTiming();
     }
   }, [tripId, user, role]);
+
+  const validateTripTiming = async () => {
+    try {
+      // Busca dados básicos da viagem
+      const { data: tripData, error: tripError } = await supabase
+        .from('viagens')
+        .select('data_viagem, horario_saida, status')
+        .eq('id', tripId)
+        .single();
+
+      if (tripError) throw tripError;
+
+      const today = new Date().toISOString().split('T')[0];
+      const now = new Date();
+      const currentHour = now.getHours();
+      const currentMinute = now.getMinutes();
+      const currentTimeInMinutes = currentHour * 60 + currentMinute;
+
+      const [hour, minute] = tripData.horario_saida.split(':').map(Number);
+      const tripTimeInMinutes = hour * 60 + minute;
+
+      // Verifica se é hoje
+      if (tripData.data_viagem !== today) {
+        Alert.alert(
+          'Viagem Indisponível',
+          'Esta viagem não é para hoje. Só é possível acessar viagens no dia do embarque.',
+          [{ text: 'OK', onPress: () => router.back() }]
+        );
+        return;
+      }
+
+      // Verifica se está dentro de 30 minutos antes
+      if (tripTimeInMinutes > (currentTimeInMinutes + 30)) {
+        const minutesUntil = tripTimeInMinutes - currentTimeInMinutes - 30;
+        Alert.alert(
+          'Aguarde',
+          `Esta viagem estará disponível em ${minutesUntil} minutos (30 minutos antes do horário de partida).`,
+          [{ text: 'OK', onPress: () => router.back() }]
+        );
+        return;
+      }
+
+      // Se passou na validação, carrega os dados completos
+      loadTripData();
+    } catch (error) {
+      console.error('Erro ao validar horário:', error);
+      Alert.alert('Erro', 'Não foi possível validar o horário da viagem.');
+      router.back();
+    }
+  };
 
   const loadTripData = async () => {
     try {
@@ -277,7 +327,10 @@ export default function BoardingControlPage() {
             buttonColor="#4CAF50"
             textColor="#FFFFFF"
             icon="qrcode-scan"
-            onPress={() => router.push(`/operator/scanner?tripId=${trip.id}` as any)}
+            onPress={() => router.push({
+              pathname: '/operator/scanner',
+              params: { tripId: trip.id }
+            } as any)}
           >
             Escanear QR Code
           </Button>

@@ -3,25 +3,22 @@ import { Perfil } from '@/types';
 import { Session, User } from '@supabase/supabase-js';
 import { create } from 'zustand';
 
-// Tipo de role do usuário
-export type UserRole = 'admin' | 'operador' | 'usuario';
-
 // Interface que define o estado da autenticação
 interface AuthState {
   // Estado atual
   user: User | null;
   profile: Perfil | null;
   session: Session | null;
-  role: UserRole | null;
   isLoading: boolean;
   isAuthenticated: boolean;
+  role: 'usuario' | 'operador' | 'admin' | null;
 
   // Ações (funções que modificam o estado)
   signIn: (email: string, password: string) => Promise<{ error: any }>;
   signUp: (email: string, password: string, fullName: string, cpf: string, phone?: string) => Promise<{ error: any; session?: Session | null }>;
   signOut: () => Promise<void>;
   loadProfile: () => Promise<void>;
-  loadUserRole: () => Promise<void>;
+  loadRole: () => Promise<void>;
   updateProfile: (updates: Partial<Perfil>) => Promise<{ error: any }>;
   initialize: () => Promise<void>;
 }
@@ -59,9 +56,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
   profile: null,
   session: null,
-  role: null,
   isLoading: true,
   isAuthenticated: false,
+  role: null,
 
   /**
    * Inicializa o store verificando se há sessão ativa
@@ -83,7 +80,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
         // Carrega o perfil e role do usuário
         await get().loadProfile();
-        await get().loadUserRole();
+        await get().loadRole();
       }
 
       // Escuta mudanças na autenticação
@@ -95,14 +92,14 @@ export const useAuthStore = create<AuthState>((set, get) => ({
             isAuthenticated: true,
           });
           await get().loadProfile();
-          await get().loadUserRole();
+          await get().loadRole();
         } else {
           set({
             user: null,
             profile: null,
             session: null,
-            role: null,
             isAuthenticated: false,
+            role: null,
           });
         }
       });
@@ -128,14 +125,19 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
       if (error) throw error;
 
+      // IMPORTANTE: Carrega role ANTES de marcar como autenticado
+      // para garantir que o redirecionamento seja correto
       set({
         user: data.user,
         session: data.session,
-        isAuthenticated: true,
       });
 
+      // Carrega perfil e role de forma síncrona
       await get().loadProfile();
-      await get().loadUserRole();
+      await get().loadRole();
+
+      // Só marca como autenticado depois de ter o role carregado
+      set({ isAuthenticated: true });
 
       return { error: null };
     } catch (error: any) {
@@ -191,7 +193,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         });
 
         await get().loadProfile();
-        await get().loadUserRole();
       }
 
       return { error: null, session: data.session };
@@ -215,8 +216,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         user: null,
         profile: null,
         session: null,
-        role: null,
         isAuthenticated: false,
+        role: null,
       });
     } catch (error) {
       console.error('Erro ao fazer logout:', error);
@@ -249,29 +250,44 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   /**
-   * Carrega o role do usuário
+   * Carrega o papel (role) do usuário da tabela papeis_usuario
    */
-  loadUserRole: async () => {
+  loadRole: async () => {
     try {
       const user = get().user;
-      if (!user) return;
+      if (!user) {
+        console.log('⚠️ loadRole: Nenhum usuário autenticado');
+        return;
+      }
+
+      console.log('🔍 Buscando role do usuário:', user.id);
 
       // Busca o papel do usuário
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('papeis_usuario')
         .select('papel')
         .eq('usuario_id', user.id)
-        .order('criado_em', { ascending: false })
-        .limit(1)
         .single();
 
-      if (data) {
-        set({ role: data.papel as UserRole });
-      } else {
+      if (error) {
+        console.error('❌ Erro ao carregar role:', error);
+        // Se não encontrar papel, assume usuário comum
         set({ role: 'usuario' });
+        console.log('⚠️ Role padrão definido como: usuario');
+        return;
+      }
+
+      if (data) {
+        const userRole = data.papel as 'usuario' | 'operador' | 'admin';
+        set({ role: userRole });
+        console.log('✅ Role carregado com sucesso:', userRole);
+      } else {
+        // Se não encontrar papel, assume usuário comum
+        set({ role: 'usuario' });
+        console.log('⚠️ Nenhum role encontrado, definido como: usuario');
       }
     } catch (error) {
-      console.error('Erro ao carregar role:', error);
+      console.error('❌ Erro ao carregar role:', error);
       set({ role: 'usuario' });
     }
   },

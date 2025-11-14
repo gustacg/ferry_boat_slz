@@ -2,19 +2,34 @@ import LoadingSpinner from '@/components/LoadingSpinner';
 import { useAuthStore } from '@/stores/authStore';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Alert, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Button, TextInput } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function LoginPage() {
   const router = useRouter();
-  const { signIn, isLoading } = useAuthStore();
+  const { signIn, isLoading, role, isAuthenticated } = useAuthStore();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
+
+  // Redireciona baseado no role após autenticação
+  useEffect(() => {
+    if (isAuthenticated && role) {
+      console.log('🔄 Redirecionando usuário. Role:', role);
+      
+      if (role === 'operador' || role === 'admin') {
+        console.log('👨‍✈️ Redirecionando para painel do operador...');
+        router.replace('/operator');
+      } else {
+        console.log('👤 Redirecionando para painel do usuário...');
+        router.replace('/(tabs)');
+      }
+    }
+  }, [isAuthenticated, role]);
 
   const handleEmailChange = (text: string) => {
     setEmail(text);
@@ -54,8 +69,7 @@ export default function LoginPage() {
       return;
     }
 
-    // Login bem-sucedido - redireciona para home
-    router.replace('/(tabs)');
+    // O redirecionamento é feito automaticamente pelo useEffect baseado no role
   };
 
   if (isLoading) {

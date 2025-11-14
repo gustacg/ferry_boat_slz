@@ -2,37 +2,94 @@
 import LoadingSpinner from '@/components/LoadingSpinner';
 import { useAuthStore } from '@/stores/authStore';
 import { useQueueStore } from '@/stores/queueStore';
+import { useTicketsStore } from '@/stores/ticketsStore';
 import { MaterialIcons } from '@expo/vector-icons';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import React, { useEffect } from 'react';
 import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Button, Card } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function QueuePage() {
+  const { ticketId } = useLocalSearchParams<{ ticketId?: string }>();
   const { user } = useAuthStore();
-  const { queueData, totalInQueue, isLoading, loadQueuePosition, refresh } = useQueueStore();
+  const { queueData, totalInQueue, isLoading, loadQueuePosition, loadQueueByTicket, refresh } = useQueueStore();
+  const { tickets, fetchTickets } = useTicketsStore();
   const [refreshing, setRefreshing] = React.useState(false);
+  const [checkingTickets, setCheckingTickets] = React.useState(true);
 
-  // Auto-atualização a cada 10 segundos
+  // Primeiro: carregar tickets do usuário
   useEffect(() => {
     if (user?.id) {
-      loadQueuePosition(user.id);
-
-      // Configura intervalo de 10 segundos
-      const interval = setInterval(() => {
-        loadQueuePosition(user.id);
-      }, 10000);
-
-      // Limpa intervalo ao desmontar
-      return () => clearInterval(interval);
+      fetchTickets(user.id).finally(() => setCheckingTickets(false));
     }
   }, [user?.id]);
+
+  // Segundo: verificar se precisa redirecionar para seleção
+  useEffect(() => {
+    if (!checkingTickets && user?.id && tickets.length > 0) {
+      // Busca tickets ativos com viagens futuras
+      const now = new Date();
+      const currentTime = now.getHours() * 60 + now.getMinutes();
+      const today = new Date().toISOString().split('T')[0];
+
+      const activeTickets = tickets.filter((t) => {
+        if (t.status !== 'active' || !t.trips) return false;
+        const tripDate = t.trips.date;
+        const tripStatus = t.trips.status;
+        
+        if (tripStatus !== 'scheduled' && tripStatus !== 'boarding') return false;
+        if (tripDate < today) return false;
+        
+        if (tripDate === today) {
+          try {
+            const tripTimeStr = t.trips.departure_time;
+            if (!tripTimeStr || tripTimeStr === '--:--') return true;
+            const [hours, minutes] = tripTimeStr.split(':').map(Number);
+            if (isNaN(hours) || isNaN(minutes)) return true;
+            const tripMinutes = hours * 60 + minutes;
+            return tripMinutes > (currentTime - 5);
+          } catch {
+            return true;
+          }
+        }
+        return true;
+      });
+
+      // Se tiver múltiplas passagens, redireciona para seleção
+      if (activeTickets.length > 1) {
+        router.replace('/(tabs)/queue-select');
+        return;
+      }
+    }
+  }, [checkingTickets, tickets, user?.id]);
+
+  // Terceiro: auto-atualização da fila a cada 25 segundos
+  useEffect(() => {
+    if (user?.id && !checkingTickets) {
+      // Se tiver ticketId, carrega fila específica, senão carrega a primeira do usuário
+      if (ticketId) {
+        loadQueueByTicket(ticketId);
+      } else {
+        loadQueuePosition(user.id);
+      }
+
+      const interval = setInterval(() => {
+        if (ticketId) {
+          loadQueueByTicket(ticketId);
+        } else {
+          loadQueuePosition(user.id);
+        }
+      }, 25000); // 25 segundos
+
+      return () => clearInterval(interval);
+    }
+  }, [user?.id, checkingTickets, ticketId]);
 
   const onRefresh = async () => {
     if (!user?.id) return;
     setRefreshing(true);
-    await refresh(user.id);
+    await refresh(user.id, ticketId);
     setRefreshing(false);
   };
 
@@ -55,7 +112,7 @@ export default function QueuePage() {
     return timeStr;
   };
 
-  if (isLoading) {
+  if (isLoading || checkingTickets) {
     return <LoadingSpinner fullScreen message="Carregando fila..." />;
   }
 
@@ -120,7 +177,7 @@ export default function QueuePage() {
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Fila ao vivo</Text>
-        <Text style={styles.headerSubtitle}>Atualização automática a cada 10s</Text>
+        <Text style={styles.headerSubtitle}>Atualização automática a cada 25s</Text>
       </View>
       <ScrollView 
         contentContainerStyle={styles.content}

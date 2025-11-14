@@ -49,6 +49,27 @@ export default function ScannerPage() {
 
       const passagemData = validationData.data;
 
+      // Verificar status da viagem
+      if (passagemData.viagem.status === 'cancelada') {
+        Alert.alert(
+          'Viagem Cancelada',
+          'Esta viagem foi cancelada e não pode mais embarcar passageiros.',
+          [{ text: 'OK', onPress: () => setScanning(true) }]
+        );
+        setProcessing(false);
+        return;
+      }
+
+      if (passagemData.viagem.status === 'partiu') {
+        Alert.alert(
+          'Viagem Já Partiu',
+          'Esta viagem já partiu. Não é mais possível embarcar passageiros.',
+          [{ text: 'OK', onPress: () => setScanning(true) }]
+        );
+        setProcessing(false);
+        return;
+      }
+
       // Verifica se já foi usada
       if (passagemData.usado_em) {
         Alert.alert(

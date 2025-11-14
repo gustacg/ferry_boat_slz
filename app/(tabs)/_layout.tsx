@@ -54,9 +54,9 @@ export default function TabLayout() {
         }}
       />
 
-      {/* Tela de Fila Digital */}
+      {/* Tela de Fila Digital - Seleção */}
       <Tabs.Screen
-        name="queue"
+        name="queue-select"
         options={{
           title: 'Fila',
           tabBarIcon: ({ focused, color }) => (
@@ -89,9 +89,9 @@ export default function TabLayout() {
 
       {/* Páginas auxiliares - ocultas do menu inferior */}
       <Tabs.Screen
-        name="queue-select"
+        name="queue"
         options={{
-          href: null, // Remove do menu inferior
+          href: null, // Remove do menu inferior - página de fila individual
         }}
       />
       <Tabs.Screen

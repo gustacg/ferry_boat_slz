@@ -172,6 +172,8 @@ export default function SignUpPage() {
               style={styles.input}
               outlineColor="#E0E0E0"
               activeOutlineColor="#0066CC"
+              textColor="#000000"
+              theme={{ colors: { onSurfaceVariant: '#000000' } }}
             />
             {errors.fullName && <Text style={styles.errorText}>{errors.fullName}</Text>}
 
@@ -188,6 +190,8 @@ export default function SignUpPage() {
               outlineColor="#E0E0E0"
               activeOutlineColor="#0066CC"
               placeholder="seu@email.com"
+              textColor="#000000"
+              theme={{ colors: { onSurfaceVariant: '#000000' } }}
             />
             {errors.email && <Text style={styles.errorText}>{errors.email}</Text>}
 
@@ -204,6 +208,8 @@ export default function SignUpPage() {
               outlineColor="#E0E0E0"
               activeOutlineColor="#0066CC"
               placeholder="000.000.000-00"
+              textColor="#000000"
+              theme={{ colors: { onSurfaceVariant: '#000000' } }}
             />
             {errors.cpf && <Text style={styles.errorText}>{errors.cpf}</Text>}
 
@@ -219,6 +225,8 @@ export default function SignUpPage() {
               outlineColor="#E0E0E0"
               activeOutlineColor="#0066CC"
               placeholder="(00) 00000-0000"
+              textColor="#000000"
+              theme={{ colors: { onSurfaceVariant: '#000000' } }}
             />
 
             <TextInput
@@ -239,6 +247,8 @@ export default function SignUpPage() {
               style={styles.input}
               outlineColor="#E0E0E0"
               activeOutlineColor="#0066CC"
+              textColor="#000000"
+              theme={{ colors: { onSurfaceVariant: '#000000' } }}
             />
             {errors.password && <Text style={styles.errorText}>{errors.password}</Text>}
 
@@ -260,6 +270,8 @@ export default function SignUpPage() {
               style={styles.input}
               outlineColor="#E0E0E0"
               activeOutlineColor="#0066CC"
+              textColor="#000000"
+              theme={{ colors: { onSurfaceVariant: '#000000' } }}
             />
             {errors.confirmPassword && <Text style={styles.errorText}>{errors.confirmPassword}</Text>}
 
@@ -369,6 +381,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     letterSpacing: 0.5,
+    color: '#FFFFFF',
   },
   loginContainer: {
     flexDirection: 'row',

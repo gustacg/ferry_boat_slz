@@ -33,7 +33,7 @@ export default function OperatorHomePage() {
 
   useEffect(() => {
     if (!authLoading) {
-      if (!user || role !== 'operador') {
+      if (!user || (role !== 'operador' && role !== 'admin')) {
         Alert.alert('Acesso negado', 'Você não tem permissão para acessar esta área.', [
           { text: 'OK', onPress: () => router.replace('/(tabs)') },
         ]);
@@ -76,9 +76,24 @@ export default function OperatorHomePage() {
 
       if (error) throw error;
 
+      // Filtra viagens para mostrar apenas 30 minutos antes do horário
+      const now = new Date();
+      const currentHour = now.getHours();
+      const currentMinute = now.getMinutes();
+      const currentTimeInMinutes = currentHour * 60 + currentMinute;
+
+      const filteredData = (data || []).filter((viagem: any) => {
+        const horarioSaida = viagem.horario_saida; // "HH:MM:SS"
+        const [hour, minute] = horarioSaida.split(':').map(Number);
+        const tripTimeInMinutes = hour * 60 + minute;
+        
+        // Mostra se estiver dentro de 30 minutos antes do horário ou se já passou
+        return tripTimeInMinutes <= (currentTimeInMinutes + 30);
+      });
+
       // Conta quantos estão na fila para cada viagem
       const tripsWithQueue = await Promise.all(
-        (data || []).map(async (viagem: any) => {
+        filteredData.map(async (viagem: any) => {
           const { count } = await supabase
             .from('fila_digital')
             .select('*', { count: 'exact', head: true })
@@ -156,7 +171,7 @@ export default function OperatorHomePage() {
     return <LoadingSpinner fullScreen message="Carregando..." />;
   }
 
-  if (!user || role !== 'operador') {
+  if (!user || (role !== 'operador' && role !== 'admin')) {
     return null;
   }
 
@@ -188,7 +203,10 @@ export default function OperatorHomePage() {
             <TouchableOpacity
               key={trip.id}
               activeOpacity={0.7}
-              onPress={() => router.push(`/operator/boarding?tripId=${trip.id}` as any)}
+              onPress={() => router.push({
+                pathname: '/operator/boarding',
+                params: { tripId: trip.id }
+              } as any)}
             >
               <Card style={styles.tripCard}>
                 <Card.Content>
