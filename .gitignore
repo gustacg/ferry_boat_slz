@@ -43,3 +43,6 @@ app-example
 /android
 *.apk
 *.aab
+
+# APK teste
+QRCode_Fácil.png
