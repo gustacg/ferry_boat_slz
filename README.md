@@ -86,7 +86,7 @@ App mobile (Expo/React Native) integrado ao Supabase para compra de passagens, f
 - Alterar `services/supabase.ts` (rápido) ou usar `app.json` (`expo.extra`). Ajuste e reinicie o app.
 
 ## Vídeo de demonstração
-- Em breve: adicionaremos um vídeo mostrando fluxo de compra, fila e embarque.
+- https://www.linkedin.com/posts/gustacg_apresento-o-ferry-boat-app-um-mvp-mobile-activity-7396555249051762688-gV8D?utm_source=share&utm_medium=member_desktop&rcm=ACoAAEMpu-sBCRvWwan-oDGPy6TNCmFi9VA-F8E
 
 ## Exemplo de cliente Supabase com `expo.extra`
 ```ts
