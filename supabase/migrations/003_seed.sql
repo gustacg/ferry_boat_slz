@@ -41,6 +41,6 @@ insert into tarifas (id, tipo, descricao, codigo, valor_vazio, valor_carregado, 
 values
   (gen_random_uuid(), 'passageiro', 'Adulto', 'PAX_ADULTO', 10.00, null, 0, true),
   (gen_random_uuid(), 'passageiro', 'Estudante', 'PAX_ESTUDANTE', 7.00, null, 0, true),
-  (gen_random_uuid(), 'veiculo', 'Carro Pequeno', 'VEI_CARRO_P', 0, 0, 6.0, true),
-  (gen_random_uuid(), 'veiculo', 'Motocicleta', 'VEI_MOTO', 0, 0, 2.5, true)
+  (gen_random_uuid(), 'veiculo', 'Carro Pequeno', 'VEI_CARRO_P', 35.00, 50.00, 6.0, true),
+  (gen_random_uuid(), 'veiculo', 'Motocicleta', 'VEI_MOTO', 20.00, 30.00, 2.5, true)
 on conflict do nothing;
