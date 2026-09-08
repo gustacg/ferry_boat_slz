@@ -1,4 +1,3 @@
--- path: c:\Users\gusta\ferry-boat-app\supabase\migrations\002_functions_triggers.sql
 create sequence if not exists passagens_numero_seq start 1 increment 1;
 
 create or replace function gerar_numero_bilhete() returns trigger language plpgsql as $$

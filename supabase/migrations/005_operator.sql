@@ -1,4 +1,3 @@
--- path: c:\Users\gusta\ferry-boat-app\supabase\migrations\005_operator.sql
 -- Após criar o usuário em Auth com email embarcador@ferry.com.br,
 -- vincule perfil e papel de operador
 

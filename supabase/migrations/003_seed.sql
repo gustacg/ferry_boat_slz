@@ -1,4 +1,3 @@
--- path: c:\Users\gusta\ferry-boat-app\supabase\migrations\003_seed.sql
 insert into rotas (id, origem, destino, distancia_km, duracao_base_minutos)
 values
   (gen_random_uuid(), 'Terminal A', 'Terminal B', 30, 60),

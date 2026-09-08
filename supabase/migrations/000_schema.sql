@@ -1,4 +1,3 @@
--- path: c:\Users\gusta\ferry-boat-app\supabase\migrations\001_schema.sql
 create extension if not exists pgcrypto;
 
 do $$
