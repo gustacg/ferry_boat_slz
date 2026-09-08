@@ -46,3 +46,6 @@ app-example
 
 # APK teste
 QRCode_Fácil.png
+# Variaveis de ambiente
+.env
+.env.local

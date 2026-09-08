@@ -2,9 +2,16 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createClient } from '@supabase/supabase-js';
 import 'react-native-url-polyfill/auto';
 
-// Credenciais do Supabase
-const SUPABASE_URL = 'https://ggerwnapzzflfkjnoien.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdnZXJ3bmFwenpmbGZram5vaWVuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjI4MTk1NDMsImV4cCI6MjA3ODM5NTU0M30.RFWx6kD4IOVWbg_7giBDAil4yWrATNk7fKwt1GguBi4';
+// Credenciais do Supabase, lidas do ambiente.
+// Copie .env.example para .env e preencha antes de rodar o app.
+const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL;
+const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
+
+if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+  throw new Error(
+    'Faltam EXPO_PUBLIC_SUPABASE_URL e EXPO_PUBLIC_SUPABASE_ANON_KEY. Veja .env.example.'
+  );
+}
 
 // Configuração do cliente Supabase
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {

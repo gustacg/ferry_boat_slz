@@ -21,20 +21,12 @@ App mobile (Expo/React Native) integrado ao Supabase para compra de passagens, f
    npm install
    ```
 2. Configure as credenciais do Supabase:
-   - Opção rápida: edite `services/supabase.ts` e ajuste `SUPABASE_URL` e `SUPABASE_ANON_KEY` com os valores do seu projeto.
-   - Opção recomendada (configuração via app.json):
-     1. Adicione em `app.json` em `expo.extra`:
-        ```json
-        {
-          "expo": {
-            "extra": {
-              "SUPABASE_URL": "https://xxxxx.supabase.co",
-              "SUPABASE_ANON_KEY": "xxxxxxxx"
-            }
-          }
-        }
-        ```
-     2. Altere o cliente em `services/supabase.ts` para ler de `expo-constants` (exemplo no fim deste README).
+   ```bash
+   cp .env.example .env
+   ```
+   Preencha `EXPO_PUBLIC_SUPABASE_URL` e `EXPO_PUBLIC_SUPABASE_ANON_KEY` com os valores do seu
+   projeto, em Project Settings, API. O `.env` está no `.gitignore` e não deve ser commitado.
+   O app falha na inicialização se alguma das duas faltar.
 
 ## Banco de Dados (Supabase)
 1. Crie um projeto no Supabase e copie `Project URL` e `Anon Key`.
@@ -83,21 +75,7 @@ App mobile (Expo/React Native) integrado ao Supabase para compra de passagens, f
 3. O link de download aparece no painel da EAS.
 
 ## Como trocar credenciais depois
-- Alterar `services/supabase.ts` (rápido) ou usar `app.json` (`expo.extra`). Ajuste e reinicie o app.
+Edite o `.env` e reinicie o Expo com `npx expo start -c`, para limpar o cache do bundler.
 
 ## Vídeo de demonstração
 - https://www.linkedin.com/posts/gustacg_apresento-o-ferry-boat-app-um-mvp-mobile-activity-7396555249051762688-gV8D?utm_source=share&utm_medium=member_desktop&rcm=ACoAAEMpu-sBCRvWwan-oDGPy6TNCmFi9VA-F8E
-
-## Exemplo de cliente Supabase com `expo.extra`
-```ts
-// services/supabase.ts
-import AsyncStorage from '@react-native-async-storage/async-storage'
-import { createClient } from '@supabase/supabase-js'
-import 'react-native-url-polyfill/auto'
-import Constants from 'expo-constants'
-
-const { SUPABASE_URL, SUPABASE_ANON_KEY } = (Constants?.expoConfig?.extra as any) || {}
-export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-  auth: { storage: AsyncStorage, autoRefreshToken: true, persistSession: true, detectSessionInUrl: false },
-})
-```
