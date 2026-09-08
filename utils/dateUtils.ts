@@ -10,11 +10,21 @@ import { ptBR } from 'date-fns/locale';
 const TIMEZONE = 'America/Sao_Paulo';
 
 /**
+ * Data pura (YYYY-MM-DD, como data_viagem) nao tem fuso: new Date('2026-09-08')
+ * e meia-noite UTC e, em Sao Paulo, exibe o dia anterior. Aqui vira meia-noite local.
+ */
+export function toDateObj(date: string | Date): Date {
+  if (typeof date !== 'string') return date;
+  const m = date.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  return m ? new Date(+m[1], +m[2] - 1, +m[3]) : new Date(date);
+}
+
+/**
  * Formata hora no formato HH:mm (ex: 08:30)
  */
 export function formatTime(date: string | Date): string {
   try {
-    const dateObj = typeof date === 'string' ? new Date(date) : date;
+    const dateObj = toDateObj(date);
     const zonedDate = toZonedTime(dateObj, TIMEZONE);
     return dateFnsFormat(zonedDate, 'HH:mm', { locale: ptBR });
   } catch (error) {
@@ -28,7 +38,7 @@ export function formatTime(date: string | Date): string {
  */
 export function formatDate(date: string | Date): string {
   try {
-    const dateObj = typeof date === 'string' ? new Date(date) : date;
+    const dateObj = toDateObj(date);
     const zonedDate = toZonedTime(dateObj, TIMEZONE);
     return dateFnsFormat(zonedDate, 'dd/MM/yyyy', { locale: ptBR });
   } catch (error) {
@@ -42,7 +52,7 @@ export function formatDate(date: string | Date): string {
  */
 export function formatDateTime(date: string | Date): string {
   try {
-    const dateObj = typeof date === 'string' ? new Date(date) : date;
+    const dateObj = toDateObj(date);
     const zonedDate = toZonedTime(dateObj, TIMEZONE);
     return dateFnsFormat(zonedDate, "dd/MM/yyyy 'às' HH:mm", { locale: ptBR });
   } catch (error) {
@@ -56,7 +66,7 @@ export function formatDateTime(date: string | Date): string {
  */
 export function formatRelativeTime(date: string | Date): string {
   try {
-    const dateObj = typeof date === 'string' ? new Date(date) : date;
+    const dateObj = toDateObj(date);
     const zonedDate = toZonedTime(dateObj, TIMEZONE);
     return formatDistanceToNow(zonedDate, { 
       addSuffix: true, 

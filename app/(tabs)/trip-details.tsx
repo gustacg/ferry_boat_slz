@@ -1,5 +1,6 @@
 // Caminho do arquivo: app/(tabs)/trip-details.tsx
 import LoadingSpinner from '@/components/LoadingSpinner';
+import { toDateObj } from '@/utils/dateUtils';
 import { supabase } from '@/services/supabase';
 import { useAuthStore } from '@/stores/authStore';
 import { ItemCompra, Tarifa } from '@/types';
@@ -513,10 +514,7 @@ export default function TripDetailsPage() {
     );
   }
 
-  const formatDate = (dateStr: string) => {
-    const date = new Date(dateStr);
-    return date.toLocaleDateString('pt-BR');
-  };
+  const formatDate = (dateStr: string) => toDateObj(dateStr).toLocaleDateString('pt-BR');  // util: new Date('YYYY-MM-DD') volta um dia em SP
 
   const formatTime = (timeStr: string) => {
     if (timeStr && timeStr.includes(':')) {

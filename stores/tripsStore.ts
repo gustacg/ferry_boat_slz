@@ -163,7 +163,7 @@ export const useTripsStore = create<TripsState>((set, get) => ({
           departure_time: departureTime,
           arrival_time: calculateArrivalTime(departureTime, durationMinutes),
           boarding_time: departureTime,
-          date: format(new Date(viagem.data_viagem), 'yyyy-MM-dd'),
+          date: viagem.data_viagem, // ja vem 'YYYY-MM-DD' do Postgres; reparsear com new Date() volta um dia
           ferry_name: viagem.embarcacao_nome,
           company: viagem.operadora,
           available_seats: viagem.vagas_disponiveis,

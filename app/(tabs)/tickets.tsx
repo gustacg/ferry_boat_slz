@@ -1,5 +1,6 @@
 // Caminho do arquivo: app/(tabs)/tickets.tsx
 import { useAuthStore } from '@/stores/authStore';
+import { toDateObj } from '@/utils/dateUtils';
 import { useTicketsStore } from '@/stores/ticketsStore';
 import { TicketStatus } from '@/types';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -357,7 +358,7 @@ export default function TicketsPage() {
                   {/* Data */}
                   {ticket.trips && (
                     <Text style={styles.dateText}>
-                      {format(new Date(ticket.trips.date), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })} às {ticket.trips.departure_time}
+                      {format(toDateObj(ticket.trips.date), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })} às {ticket.trips.departure_time}
                     </Text>
                   )}
 
@@ -395,7 +396,7 @@ export default function TicketsPage() {
                         style={styles.cancelButton}
                         labelStyle={styles.cancelButtonLabel}
                       >
-                        Cancelar Passagem{hasGroup ? 's' : ''}
+                        {hasGroup ? 'Cancelar Passagens' : 'Cancelar Passagem'}
                       </Button>
                     </>
                   )}

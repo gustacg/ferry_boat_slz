@@ -1,6 +1,7 @@
 // Caminho do arquivo: app/trip-qrcode.tsx
 import LoadingSpinner from '@/components/LoadingSpinner';
 import { supabase } from '@/services/supabase';
+import { toDateObj } from '@/utils/dateUtils';
 import { MaterialIcons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useEffect, useState } from 'react';
@@ -140,11 +141,8 @@ export default function TripQRCodePage() {
     );
   }
 
-  // Formata data brasileira
-  const formatDate = (dateStr: string) => {
-    const date = new Date(dateStr);
-    return date.toLocaleDateString('pt-BR');
-  };
+  // Formata data brasileira (usa o util: new Date('YYYY-MM-DD') volta um dia em SP)
+  const formatDate = (dateStr: string) => toDateObj(dateStr).toLocaleDateString('pt-BR');
 
   // Formata horário removendo segundos (HH:MM:SS -> HH:MM)
   const formatTime = (timeStr: string) => {

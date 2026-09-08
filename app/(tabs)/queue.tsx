@@ -1,5 +1,6 @@
 // Caminho do arquivo: app/(tabs)/queue.tsx
 import LoadingSpinner from '@/components/LoadingSpinner';
+import { toDateObj } from '@/utils/dateUtils';
 import { useAuthStore } from '@/stores/authStore';
 import { useQueueStore } from '@/stores/queueStore';
 import { useTicketsStore } from '@/stores/ticketsStore';
@@ -56,13 +57,15 @@ export default function QueuePage() {
         return true;
       });
 
-      // Se tiver múltiplas passagens, redireciona para seleção
-      if (activeTickets.length > 1) {
+      // Se tiver múltiplas passagens, redireciona para seleção.
+      // Com ticketId a fila ja foi escolhida em queue-select: redirecionar aqui
+      // devolvia a pessoa para a selecao e a escolha nunca abria.
+      if (activeTickets.length > 1 && !ticketId) {
         router.replace('/(tabs)/queue-select');
         return;
       }
     }
-  }, [checkingTickets, tickets, user?.id]);
+  }, [checkingTickets, tickets, user?.id, ticketId]);
 
   // Terceiro: auto-atualização da fila a cada 25 segundos
   useEffect(() => {
@@ -98,10 +101,7 @@ export default function QueuePage() {
     return Math.max(position * 2, 5); // Mínimo 5 minutos
   };
 
-  const formatDate = (dateStr: string) => {
-    const date = new Date(dateStr);
-    return date.toLocaleDateString('pt-BR');
-  };
+  const formatDate = (dateStr: string) => toDateObj(dateStr).toLocaleDateString('pt-BR');  // util: new Date('YYYY-MM-DD') volta um dia em SP
 
   const formatTime = (timeStr: string) => {
     // Remove segundos do horário (ex: "14:30:00" -> "14:30")
